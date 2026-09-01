@@ -1,7 +1,7 @@
 ---
 name: opsx-explorer
 description: Investigates a goal and writes the durable explore brief for the OpenSpec proposer.
-model: github-copilot/gpt-5.6-terra
+model: "GPT-5.6 Terra (copilot)"
 tools: [read, search, execute, write]
 user-invocable: false
 ---

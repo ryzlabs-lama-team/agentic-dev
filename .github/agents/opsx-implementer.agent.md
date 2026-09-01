@@ -1,7 +1,7 @@
 ---
 name: opsx-implementer
 description: Applies approved OpenSpec tasks against delta specs, including retry round one.
-model: github-copilot/gpt-5.6-terra
+model: "GPT-5.6 Terra (copilot)"
 tools: [read, search, execute, write]
 user-invocable: false
 ---

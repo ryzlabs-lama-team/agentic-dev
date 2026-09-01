@@ -1,7 +1,7 @@
 ---
 name: opsx-verifier
 description: Independently verifies code against OpenSpec delta specs and writes a findings file.
-model: github-copilot/gpt-5.6-sol
+model: "GPT-5.6 Sol (copilot)"
 tools: [read, search, execute, write]
 user-invocable: false
 ---

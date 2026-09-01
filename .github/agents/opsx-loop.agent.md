@@ -1,7 +1,7 @@
 ---
 name: opsx-loop
 description: Coordinates a governed OpenSpec change through explore, propose, approval, apply, verify, and sync.
-model: github-copilot/gpt-5.6-luna
+model: "GPT-5.6 Luna (copilot)"
 tools: [read, search, execute, agent]
 agents: [opsx-explorer, opsx-proposer, opsx-implementer, opsx-implementer-hard, opsx-verifier, opsx-syncer]
 user-invocable: true

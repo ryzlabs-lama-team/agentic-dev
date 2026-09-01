@@ -1,7 +1,7 @@
 ---
 name: opsx-syncer
 description: Syncs validated OpenSpec delta specs and optionally archives at user request.
-model: github-copilot/gpt-5.6-luna
+model: "GPT-5.6 Luna (copilot)"
 tools: [read, search, execute, write]
 user-invocable: false
 ---

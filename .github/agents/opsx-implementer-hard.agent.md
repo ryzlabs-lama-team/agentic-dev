@@ -1,7 +1,7 @@
 ---
 name: opsx-implementer-hard
 description: Sol-powered apply worker used only for the second blocking-verification retry.
-model: github-copilot/gpt-5.6-sol
+model: "GPT-5.6 Sol (copilot)"
 tools: [read, search, execute, write]
 user-invocable: false
 ---

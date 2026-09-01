@@ -1,7 +1,7 @@
 ---
 name: opsx-proposer
 description: Creates or revises approved OpenSpec planning artifacts from an explore brief.
-model: github-copilot/gpt-5.6-sol
+model: "GPT-5.6 Sol (copilot)"
 tools: [read, search, execute, write]
 user-invocable: false
 ---

@@ -12,7 +12,7 @@ for agent in "${agents[@]}"; do
 done
 [ "$(printf '%s\n' .github/agents/opsx-*.agent.md 2>/dev/null | wc -l | tr -d ' ')" = 7 ] || { echo 'FAIL: expected exactly 7 Copilot profiles' >&2; exit 1; }
 ruby -e 'require "yaml"; h=YAML.safe_load(File.read(ARGV[0]).split("---",3)[1], aliases: true); abort "coordinator visibility" unless h["user-invocable"] == true; expected=%w[opsx-explorer opsx-proposer opsx-implementer opsx-implementer-hard opsx-verifier opsx-syncer]; abort "delegation" unless h["agents"] == expected' .github/agents/opsx-loop.agent.md
-for pair in 'loop luna' 'explorer terra' 'proposer sol' 'implementer terra' 'implementer-hard sol' 'verifier sol' 'syncer luna'; do set -- $pair; grep -q "gpt-5.6-$2" ".github/agents/opsx-$1.agent.md" || { echo "FAIL: $1 model allocation" >&2; exit 1; }; done
+for pair in 'loop Luna' 'explorer Terra' 'proposer Sol' 'implementer Terra' 'implementer-hard Sol' 'verifier Sol' 'syncer Luna'; do set -- $pair; grep -q "GPT-5.6 $2 (copilot)" ".github/agents/opsx-$1.agent.md" || { echo "FAIL: $1 model allocation" >&2; exit 1; }; done
 # OpenSpec-generated skills and prompts may be present beside this distribution;
 # the installer enumerates owned paths and must never include them.
 if grep -R -n -E '\.(claude|opencode)/' .github/agents .github/opsx-loop; then echo 'FAIL: stale runtime-tree reference' >&2; exit 1; fi
