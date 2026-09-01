@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Install the opsx-loop orchestrator + subagents into a target repo.
+#   ./install.sh /path/to/repo
+set -euo pipefail
+
+SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+DEST="${1:-}"
+
+if [ -z "$DEST" ]; then
+  echo "usage: $0 /path/to/target-repo" >&2
+  exit 1
+fi
+if [ ! -d "$DEST" ]; then
+  echo "error: $DEST is not a directory" >&2
+  exit 1
+fi
+
+mkdir -p "$DEST/.claude/agents" "$DEST/.claude/skills"
+
+for a in explorer proposer implementer verifier syncer; do
+  cp "$SRC/.claude/agents/opsx-$a.md" "$DEST/.claude/agents/"
+  echo "  agents/opsx-$a.md"
+done
+
+cp -R "$SRC/.claude/skills/opsx-loop" "$DEST/.claude/skills/"
+chmod +x "$DEST/.claude/skills/opsx-loop/preflight.sh"
+echo "  skills/opsx-loop/"
+
+if [ -d "$DEST/.git" ] && ! grep -qs '^\.opsx-run' "$DEST/.gitignore" 2>/dev/null; then
+  printf '\n# opsx-loop run state\n.opsx-run/\n' >> "$DEST/.gitignore"
+  echo "  .gitignore += .opsx-run/"
+fi
+
+echo
+echo "Installed into $DEST"
+echo "Next: cd $DEST && bash .claude/skills/opsx-loop/preflight.sh"

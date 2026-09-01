@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:github.com)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(openspec *)",
+      "Bash(command -v shasum sha256sum cmp jq)",
+      "Skill(openspec-propose)",
+      "Skill(openspec-propose:*)"
+    ]
+  }
+}
