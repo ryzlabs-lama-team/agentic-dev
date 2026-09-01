@@ -1,7 +1,7 @@
 ---
 description: Runs the OpenSpec verify gate. Adversarially checks the implementation against the change's delta specs and tasks, and writes a findings file. Read-only except for findings. Invoked by the opsx-loop orchestrator.
 mode: subagent
-model: anthropic/claude-opus-5
+model: github-copilot/gpt-5.6-sol
 permission:
   task: deny
   websearch: deny

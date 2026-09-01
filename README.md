@@ -98,22 +98,20 @@ The orchestrator never reads specs, code, or diffs. It reads paths and
 
 **OpenCode**
 
-Concrete `provider/model` ids, confirmed against models.dev (OpenCode's model registry) at the time
-this table was written. Your local `opencode models` output only lists models your configured
-providers can actually reach, so it may not include these ids until an `anthropic` provider is
-configured — preflight's model-availability check will fail in that case. If OpenCode's registry
-moves on, re-verify against models.dev and update this table — the agent frontmatter and this
-table are the only two places these ids appear.
+Concrete `provider/model` ids are confirmed against the GitHub Copilot provider. Your local
+`opencode models github-copilot` output lists the models your configured Copilot subscription can
+actually reach. If the provider's catalog changes, re-verify the ids and update this table — the
+agent frontmatter and this table are the only two places these ids appear.
 
 | Agent | Stage | Model | Rationale |
 |---|---|---|---|
-| `opsx-loop` | orchestrator | `anthropic/claude-opus-5` | Coordination across a long-running, multi-stage session |
-| `opsx-explorer` | explore | `anthropic/claude-opus-5` | Divergent reasoning, tradeoffs, ambiguity resolution |
-| `opsx-proposer` | propose | `anthropic/claude-opus-5` | A vague requirement propagates into every later stage |
-| `opsx-implementer` | apply, rounds 0-1 | `anthropic/claude-sonnet-5` | Mechanical volume against an already-precise plan |
-| `opsx-implementer-hard` | apply, round 2 (hidden) | `anthropic/claude-opus-5` | The escalation tier reached as a second subagent, not a per-call override |
-| `opsx-verifier` | verify | `anthropic/claude-opus-5` | Adversarial review needs capability *and* fresh context |
-| `opsx-syncer` | sync/archive | `anthropic/claude-sonnet-5` | Deterministic delta merge, guarded by `openspec validate` |
+| `opsx-loop` | orchestrator | `github-copilot/gpt-5.6-luna` | Explicit state-machine coordination delegates substantive work to subagents |
+| `opsx-explorer` | explore | `github-copilot/gpt-5.6-terra` | Cost-effective ambiguity resolution and tradeoff analysis |
+| `opsx-proposer` | propose | `github-copilot/gpt-5.6-sol` | Planning mistakes propagate into every later stage |
+| `opsx-implementer` | apply, rounds 0-1 | `github-copilot/gpt-5.6-terra` | Strong coding capability for execution against an already-precise plan |
+| `opsx-implementer-hard` | apply, round 2 (hidden) | `github-copilot/gpt-5.6-sol` | Flagship escalation reached as a second subagent, not a per-call override |
+| `opsx-verifier` | verify | `github-copilot/gpt-5.6-sol` | Adversarial review needs flagship capability and fresh context |
+| `opsx-syncer` | sync/archive | `github-copilot/gpt-5.6-luna` | Deterministic delta merge, guarded by `openspec validate` |
 
 ### Runtime differences
 

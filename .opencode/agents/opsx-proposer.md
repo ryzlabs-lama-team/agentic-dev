@@ -1,7 +1,7 @@
 ---
 description: Runs the OpenSpec propose stage. Reads the explore brief and creates the change folder with proposal.md, delta specs, design, and tasks.md. Writes no application code. Invoked by the opsx-loop orchestrator.
 mode: subagent
-model: anthropic/claude-opus-5
+model: github-copilot/gpt-5.6-sol
 permission:
   task: deny
   websearch: deny
@@ -51,7 +51,7 @@ You are given: a change id, a run slug, and the path to the explore brief.
 - Where the brief left an open question, encode the **assumption** in the artifact and flag it in
   your return payload so a human reviewing the gate sees it.
 
-## Writing tasks.md for a Sonnet implementer
+## Writing tasks.md for a Terra implementer
 
 The implementer is a cheaper model with no memory of this conversation. Write tasks accordingly:
 

@@ -1,7 +1,7 @@
 ---
 description: Runs the OpenSpec explore stage. Investigates a fuzzy request against the codebase, weighs approaches, and writes a decision brief that the proposer consumes. Read-only except for the brief. Invoked by the opsx-loop orchestrator.
 mode: subagent
-model: anthropic/claude-opus-5
+model: github-copilot/gpt-5.6-terra
 permission:
   task: deny
   edit:

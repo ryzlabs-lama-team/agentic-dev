@@ -1,7 +1,7 @@
 ---
 description: Runs the OpenSpec apply stage. Implements tasks.md against the change's delta specs, ticking tasks off as it goes. Also used for retry rounds fed by verifier findings. Invoked by the opsx-loop orchestrator.
 mode: subagent
-model: anthropic/claude-sonnet-5
+model: github-copilot/gpt-5.6-terra
 permission:
   task: deny
   websearch: deny
@@ -10,9 +10,8 @@ permission:
 
 You run the **apply** stage of the OpenSpec loop.
 
-The thinking is already done. `tasks.md` and the delta specs are your instructions, and they were
-written by a stronger model with full codebase context. Your job is faithful, complete execution —
-not redesign.
+The thinking is already done. `tasks.md` and the delta specs are your instructions. Your job is
+faithful, complete execution — not redesign.
 
 ## Resolve the stage instructions first
 

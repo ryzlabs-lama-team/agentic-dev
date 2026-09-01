@@ -2,7 +2,7 @@
 description: Escalated apply-stage subagent for retry round 2. Delegates its procedure to opsx-implementer.md on a higher-capability model. Hidden from autocomplete; invoked only by the opsx-loop orchestrator.
 mode: subagent
 hidden: true
-model: anthropic/claude-opus-5
+model: github-copilot/gpt-5.6-sol
 permission:
   task: deny
   websearch: deny

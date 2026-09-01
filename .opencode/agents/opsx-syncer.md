@@ -1,7 +1,7 @@
 ---
 description: Runs the OpenSpec sync and archive stages. Merges the change's delta specs into openspec/specs/ and optionally archives the change. Mechanical, validation-guarded. Invoked by the opsx-loop orchestrator.
 mode: subagent
-model: anthropic/claude-sonnet-5
+model: github-copilot/gpt-5.6-luna
 permission:
   task: deny
   websearch: deny

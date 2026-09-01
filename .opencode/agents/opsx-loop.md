@@ -1,7 +1,7 @@
 ---
 description: Orchestrates a full OpenSpec change through explore → propose → apply → verify → sync → archive using specialized subagents. Use when the user asks to run an OpenSpec loop, drive a change end to end with opsx, or says "opsx-loop <goal>". Also use when resuming or checking the status of an in-flight opsx run.
 mode: primary
-model: anthropic/claude-opus-5
+model: github-copilot/gpt-5.6-luna
 permission:
   task:
     "*": deny
@@ -48,11 +48,11 @@ explore ──► propose ──► [HUMAN GATE] ──► apply ──► verif
 
 | Stage | Subagent | Model | Why |
 |---|---|---|---|
-| explore | `opsx-explorer` | opus | Divergent reasoning, ambiguity resolution |
-| propose | `opsx-proposer` | opus | A vague requirement corrupts every later stage |
-| apply | `opsx-implementer` | sonnet → opus on retry 2 | Mechanical volume against a precise plan |
-| verify | `opsx-verifier` | opus | Adversarial review needs capability + fresh context |
-| sync/archive | `opsx-syncer` | sonnet | Deterministic, validation-guarded merge |
+| explore | `opsx-explorer` | Terra | Cost-effective ambiguity resolution and tradeoff analysis |
+| propose | `opsx-proposer` | Sol | A vague requirement corrupts every later stage |
+| apply | `opsx-implementer` | Terra → Sol on retry 2 | Mechanical volume against a precise plan, with a flagship escalation |
+| verify | `opsx-verifier` | Sol | Adversarial review needs capability + fresh context |
+| sync/archive | `opsx-syncer` | Luna | Deterministic, validation-guarded merge |
 
 Escalate by spawning a different subagent, not by overriding a model at call time: round 1 spawns
 `opsx-implementer`; round 2 spawns `opsx-implementer-hard`. Neither spawn passes a model
@@ -120,7 +120,7 @@ ambiguous reply — ask again rather than guessing which option was meant.
 
 ### 5. apply
 
-Spawn `opsx-implementer` (sonnet) with the change id and full task scope.
+Spawn `opsx-implementer` (Terra) with the change id and full task scope.
 
 - `STATUS: spec-conflict` → do **not** let the implementer fix the spec. Route to the proposer for
   `/opsx:update`, then re-run apply.
@@ -129,7 +129,7 @@ Spawn `opsx-implementer` (sonnet) with the change id and full task scope.
 
 ### 6. verify — the gate
 
-Spawn `opsx-verifier` (opus) with the change id, round number, and findings path.
+Spawn `opsx-verifier` (Sol) with the change id, round number, and findings path.
 
 | Verdict | Action |
 |---|---|
