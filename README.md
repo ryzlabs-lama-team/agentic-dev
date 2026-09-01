@@ -1,8 +1,8 @@
 # opsx-loop
 
 An orchestrator and stage subagents that drive an [OpenSpec](https://github.com/Fission-AI/OpenSpec)
-change from a fuzzy idea to a synced spec. Shipped as two co-equal distributions — Claude Code and
-OpenCode — with identical stage semantics; only the runtime mechanism differs (see
+change from a fuzzy idea to a synced spec. Shipped for Claude Code, OpenCode, and GitHub Copilot,
+with identical governed stage semantics where the runtime supports them (see
 [Runtime differences](#runtime-differences) below).
 
 ```
@@ -14,24 +14,30 @@ explore ──► propose ──► [HUMAN GATE] ──► apply ──► verif
 ## Install
 
 ```sh
-./install.sh [--force] [--target claude|opencode|both] /path/to/your-repo
+./install.sh [--force] [--target claude|opencode|copilot|all] /path/to/your-repo
 cd /path/to/your-repo
 bash .claude/skills/opsx-loop/preflight.sh      # Claude Code
 bash .opencode/opsx-loop/preflight.sh           # OpenCode
+bash .github/opsx-loop/preflight.sh             # GitHub Copilot
 ```
 
 `--target` defaults to `claude`, so every invocation that predates this flag still installs only
 the Claude Code distribution and behaves exactly as before. Pass `--target opencode` for the
-OpenCode distribution alone, or `--target both` to install both in one run.
+OpenCode distribution alone, `--target copilot` for GitHub Copilot, or `--target all` for every
+distribution. `both` was removed and is rejected: migrate it to `all`, or invoke `claude` and
+`opencode` separately when Copilot must be excluded.
 
 Requires OpenSpec already initialized in the target repo (`openspec init`), with the tool(s)
 matching your chosen `--target` selected — Claude Code so `.claude/commands/opsx/` exists,
-OpenCode so `.opencode/commands/` and `.opencode/skills/` exist.
+OpenCode so `.opencode/commands/` and `.opencode/skills/` exist, or GitHub Copilot so
+`.github/skills/openspec-*` and `.github/prompts/opsx-*.prompt.md` are available as OpenSpec-owned
+worker-instruction prerequisites. The installer never installs or modifies those GitHub assets.
 
 The installer refuses to clobber files you have customized: if any installed file of a selected
 distribution (an `opsx-*` agent, the `opsx-loop` command, or a file under `.claude/skills/opsx-loop/`
-or `.opencode/opsx-loop/`) has been edited since it was last installed, the installer lists every
-such path on stderr, writes nothing — for either distribution, when `--target both` — and exits
+or `.opencode/opsx-loop/`, or `.github/opsx-loop/`) has been edited since it was last installed,
+the installer lists every such path on stderr, writes nothing — for all distributions when
+`--target all` — and exits
 `1`. Pass `--force` (or `-f`, in any position) to overwrite those files anyway. Routine upgrades —
 files that only changed upstream, not at the destination — install without needing the flag.
 
@@ -53,6 +59,11 @@ installer wrote and routine upgrades no longer prompt for the flag.
 ```
 /opsx-loop add rate limiting to the public API
 ```
+
+**GitHub Copilot**, in current VS Code: select the `opsx-loop` custom agent and give it the goal.
+VS Code is the only required full-loop Copilot runtime. Copilot CLI and cloud agent may discover
+these target-neutral profiles, but are experimental/best effort until each passes the same
+coordinator-to-worker acceptance run.
 
 Either way, the orchestrator runs explore and propose, then **stops for your approval** before any
 code is written. After you approve, it applies, verifies, and syncs.
@@ -113,16 +124,28 @@ agent frontmatter and this table are the only two places these ids appear.
 | `opsx-verifier` | verify | `github-copilot/gpt-5.6-sol` | Adversarial review needs flagship capability and fresh context |
 | `opsx-syncer` | sync/archive | `github-copilot/gpt-5.6-luna` | Deterministic delta merge, guarded by `openspec validate` |
 
+**GitHub Copilot**
+
+| Agent | Stage | Model |
+|---|---|---|
+| `opsx-loop`, `opsx-syncer` | coordinator, sync/archive | `github-copilot/gpt-5.6-luna` |
+| `opsx-explorer`, `opsx-implementer` | explore, apply rounds 0–1 | `github-copilot/gpt-5.6-terra` |
+| `opsx-proposer`, `opsx-implementer-hard`, `opsx-verifier` | propose, apply round 2, verify | `github-copilot/gpt-5.6-sol` |
+
+Each Copilot profile explicitly names its model. Availability and any client fallback selection
+depend on the VS Code Copilot client and subscription; release validation must confirm at least one
+configured value for every profile.
+
 ### Runtime differences
 
-Both distributions preserve the loop's stage sequence, three-tier context discipline, run ledger,
+All three distributions preserve the loop's stage sequence, three-tier context discipline, run ledger,
 ≤30-line return payloads, mandatory human gate, and ≤2-round retry budget identically. Only the
 mechanism differs, in exactly two places:
 
-| Mechanism | Claude Code | OpenCode |
-|---|---|---|
-| Retry-2 escalation | The orchestrator passes `model: "opus"` to the Agent tool for that one call, overriding the agent definition's frontmatter | The orchestrator spawns a different, hidden agent — `opsx-implementer-hard` — because OpenCode's subagent-invocation tool accepts no model parameter |
-| Instruction resolution | `.claude/commands/opsx/<stage>.md` | `.opencode/commands/opsx-<stage>.md` (flat, hyphenated) |
+| Mechanism | Claude Code | OpenCode | GitHub Copilot |
+|---|---|---|---|
+| Retry-2 escalation | The orchestrator passes `model: "opus"` to the Agent tool for that one call, overriding the agent definition's frontmatter | The orchestrator spawns a different, hidden agent — `opsx-implementer-hard` — because OpenCode's subagent-invocation tool accepts no model parameter | The coordinator delegates retry round 2 to the separate, non-user-selectable `opsx-implementer-hard` profile |
+| Instruction resolution | `.claude/commands/opsx/<stage>.md` | `.opencode/commands/opsx-<stage>.md` (flat, hyphenated) | `.github/skills/openspec-*`, then `.github/prompts/opsx-*.prompt.md`, then CLI where available |
 
 ### The separations that matter
 
@@ -193,6 +216,16 @@ target repo — they belong to OpenSpec, and `install.sh` never installs, classi
   opsx-loop/
     preflight.sh
   .opsx-install-manifest  sha256 of each installed file; commit it
+
+.github/
+  agents/
+    opsx-loop.agent.md        sole selectable coordinator, Luna
+    opsx-*.agent.md           six hidden flat workers (Terra/Sol/Luna as allocated)
+  opsx-loop/
+    preflight.sh
+    validate-agents.sh
+  skills/, prompts/           OpenSpec-owned prerequisites; NOT installed
+  .opsx-install-manifest      sha256 of toolkit-owned GitHub files; commit it
 
 install.sh
 ```

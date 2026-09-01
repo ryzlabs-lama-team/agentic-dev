@@ -33,12 +33,20 @@ For the `opencode` target the installed set SHALL be an **explicitly enumerated*
 found by recursively enumerating the source `.opencode/opsx-loop/` directory at run time. The
 installer SHALL NOT build this list by recursively enumerating `.opencode/` as a whole.
 
-For the `both` target the installed set SHALL be the union of the two.
+For the `copilot` target the installed set SHALL be an **explicitly enumerated** list: the seven `.github/agents/opsx-*.agent.md` files and every regular file found by recursively enumerating the source `.github/opsx-loop/` directory at run time. The installer SHALL NOT build this list by recursively enumerating `.github/` as a whole.
 
-Files under `.opencode/commands/` other than `opsx-loop.md`, and everything under
-`.opencode/skills/`, are produced in the target repo by `openspec init --tools opencode` and belong
-to OpenSpec, not to this toolkit. They SHALL never be classified, written, reported, or recorded in
-a manifest by the installer — including when they are present in the installer's own source tree.
+For the `all` target the installed set SHALL be exactly the union of the `claude`, `opencode`, and `copilot` sets.
+
+Files under `.opencode/commands/` other than `opsx-loop.md`, everything under `.opencode/skills/`,
+everything under `.github/skills/`, everything under `.github/prompts/`, and repository-wide Copilot
+instruction files are produced or owned outside this toolkit. They SHALL never be classified,
+written, reported, or recorded in a manifest by the installer, including when present in the
+installer's source tree.
+
+#### Scenario: Copilot target installs exactly the enumerated files
+
+- **WHEN** the installer runs with the `copilot` target against an empty destination
+- **THEN** it creates the seven `.github/agents/opsx-*.agent.md` files and contents of `.github/opsx-loop/`, and creates nothing else under `.github/`
 
 #### Scenario: OpenCode target installs exactly the enumerated files
 
@@ -56,7 +64,7 @@ a manifest by the installer — including when they are present in the installer
 #### Scenario: OpenSpec-generated skills are ignored in the source
 
 - **WHEN** the installer's source tree contains `.opencode/skills/openspec-*/SKILL.md` files and
-  the installer runs with the `opencode` or `both` target
+  the installer runs with the `opencode` or `all` target
 - **THEN** no file under `.opencode/skills/` is classified, written, or recorded
 
 #### Scenario: Claude target installed set is unchanged
@@ -66,26 +74,29 @@ a manifest by the installer — including when they are present in the installer
   file under the source `.claude/skills/opsx-loop/`, and no file under `.opencode/` is classified,
   written, or recorded
 
-#### Scenario: Both target installs the union
+#### Scenario: OpenSpec GitHub assets are ignored
 
-- **WHEN** the installer runs with the `both` target against an empty destination
-- **THEN** it writes every member of the `claude` installed set and every member of the `opencode`
-  installed set
+- **WHEN** the source contains `.github/skills/openspec-*` and `.github/prompts/opsx-*.prompt.md` files and the installer runs with `copilot` or `all`
+- **THEN** none of those files is classified, written, or recorded
+
+#### Scenario: All target installs all distributions
+
+- **WHEN** the installer runs with the `all` target against an empty destination
+- **THEN** it writes every member of the Claude, OpenCode, and Copilot installed sets
 
 ### Requirement: The target is selected by a flag that defaults to the Claude Code distribution
 
-The installer SHALL accept a `--target <value>` flag whose value is one of `claude`, `opencode`, or
-`both`, in any position relative to the destination argument and relative to the force flag. When
-the flag is omitted the target SHALL be `claude`, so that every invocation that was valid before
-this flag existed continues to produce byte-for-byte the same result.
+The installer SHALL accept a `--target <value>` flag whose value is one of `claude`, `opencode`,
+`copilot`, or `all`, in any position relative to the destination argument and force flag. When
+omitted, the target SHALL be `claude`, so every invocation that remains valid produces byte-for-byte
+the same result.
 
-An unrecognized target value, a repeated `--target` flag, or a `--target` flag with no value SHALL
-cause the installer to print a usage message to stderr and exit `1` without modifying the
-destination.
+An unrecognized value, including the previously accepted value `both`, a repeated flag, or a flag
+with no value SHALL cause a usage message on stderr and exit `1` without modifying the destination.
 
-When the target is `both`, the two-pass discipline SHALL span both distributions: the installer
-SHALL classify the complete union before writing anything, and a `customized` file in either
-distribution SHALL block the writing of both unless force is enabled.
+For `all`, classification SHALL cover exactly the complete union of the Claude, OpenCode, and
+Copilot distributions before any write; any `customized` file in that union SHALL block all three
+distributions unless force is enabled.
 
 #### Scenario: Omitted flag preserves current behavior
 
@@ -104,9 +115,14 @@ distribution SHALL block the writing of both unless force is enabled.
 - **WHEN** the installer is invoked with `--target vscode`
 - **THEN** it prints a usage message to stderr, exits `1`, and modifies no file at the destination
 
+#### Scenario: Removed target is rejected
+
+- **WHEN** the installer is invoked with `--target both`
+- **THEN** it prints usage to stderr, exits `1`, and modifies no destination file
+
 #### Scenario: A conflict in one distribution blocks the other
 
-- **WHEN** the target is `both`, force is disabled, and exactly one file in the `opencode`
+- **WHEN** the target is `all`, force is disabled, and exactly one file in the `opencode`
   installed set is `customized`
 - **THEN** no file of either distribution is written and the destination is byte-for-byte unchanged
 
@@ -115,6 +131,11 @@ distribution SHALL block the writing of both unless force is enabled.
 - **WHEN** the installer completes successfully with the `opencode` target
 - **THEN** the next-step it prints names `.opencode/opsx-loop/preflight.sh` rather than the Claude
   Code preflight path
+
+#### Scenario: Copilot next-step hint is target-specific
+
+- **WHEN** a Copilot-only install succeeds
+- **THEN** the printed next step names the Copilot preflight command
 
 ### Requirement: Every destination file is classified before any file is written
 
@@ -244,10 +265,10 @@ content unchanged.
 ### Requirement: Installer records provenance of every file it writes
 
 On every successful install the installer SHALL write one manifest per installed distribution under
-the destination: `.claude/.opsx-install-manifest` when the `claude` distribution was installed, and
-`.opencode/.opsx-install-manifest` when the `opencode` distribution was installed. With the `both`
-target it SHALL write both. Each manifest SHALL cover only its own distribution's portion of the
-installed set, and SHALL be rewritten in full on each successful run.
+the destination: `.claude/.opsx-install-manifest`, `.opencode/.opsx-install-manifest`, or
+`.github/.opsx-install-manifest`. A multi-distribution target SHALL write the manifest for every
+selected distribution. Each manifest SHALL cover only its own distribution's installed set and
+SHALL be rewritten in full on success.
 
 Each manifest SHALL be plain text with one line per file in that distribution's installed set, each
 line containing the sha256 hash of the installed content followed by two spaces and the file's path
@@ -265,6 +286,11 @@ distribution.
 - **WHEN** the installer completes successfully against a destination that had no manifest
 - **THEN** a manifest exists for each installed distribution and contains one line per file that
   distribution installed
+
+#### Scenario: Copilot manifest is scoped to GitHub toolkit files
+
+- **WHEN** a Copilot install succeeds
+- **THEN** `.github/.opsx-install-manifest` records every Copilot installed-set file and records no `.github/skills/`, `.github/prompts/`, Claude, or OpenCode path
 
 #### Scenario: Manifest refreshed after a forced overwrite
 
@@ -296,9 +322,13 @@ distribution.
 
 #### Scenario: Each manifest is scoped to its own distribution
 
-- **WHEN** the installer runs with the `both` target and completes successfully
-- **THEN** `.claude/.opsx-install-manifest` contains only paths under `.claude/` and
-  `.opencode/.opsx-install-manifest` contains only paths under `.opencode/`
+- **WHEN** the installer runs with the `all` target and completes successfully
+- **THEN** the Claude, OpenCode, and Copilot manifests contain only paths owned by their respective distributions
+
+#### Scenario: All target writes three manifests
+
+- **WHEN** an `all` install succeeds
+- **THEN** each of the three distribution manifests exists and contains only paths owned by that distribution
 
 ### Requirement: Installer degrades gracefully without a sha256 tool
 
@@ -351,3 +381,13 @@ not force is enabled, and SHALL never appear in the installer's classification o
 - **WHEN** the destination contains OpenSpec-generated files under `.opencode/skills/` and the
   installer runs with force enabled and the `both` target
 - **THEN** those files exist with unchanged content after the run
+
+#### Scenario: OpenSpec GitHub files survive forced all install
+
+- **WHEN** the destination contains GitHub OpenSpec skills and prompts and the installer runs with `--target all --force`
+- **THEN** those files retain their original content and are not reported
+
+#### Scenario: User-added Copilot agent survives
+
+- **WHEN** `.github/agents/my-agent.agent.md` has no source counterpart and a Copilot install runs
+- **THEN** the file remains unchanged and is not reported
