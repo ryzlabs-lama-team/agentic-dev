@@ -42,7 +42,12 @@ for a in explorer proposer implementer verifier syncer; do
 done
 [ -z "$missing" ] && ok "all 5 opsx-* subagents installed" || bad "missing subagents:$missing"
 
-mkdir -p .opsx-run && ok ".opsx-run/ writable"
+if mkdir -p .opsx-run 2>/dev/null && ( : > .opsx-run/.preflight-write-probe ) 2>/dev/null; then
+  rm -f .opsx-run/.preflight-write-probe
+  ok ".opsx-run/ writable"
+else
+  bad ".opsx-run/ is missing or not writable — check that it is a directory with write permission"
+fi
 
 if [ -d .git ] && ! grep -qs '^\.opsx-run' .gitignore; then
   warn ".opsx-run/ is not in .gitignore — add it to keep run state out of commits"

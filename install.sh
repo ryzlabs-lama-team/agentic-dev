@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 # Install the opsx-loop orchestrator + subagents into a target repo.
-#   ./install.sh [--force] /path/to/repo
+#   ./install.sh [--force] [--target claude|opencode|both] /path/to/repo
 set -euo pipefail
 
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+
+usage() {
+  echo "usage: $0 [--force] [--target claude|opencode|both] /path/to/target-repo" >&2
+}
 
 # Detect a sha256 tool once at startup (macOS ships shasum, Linux ships sha256sum).
 HAVE_SHA=1
@@ -26,27 +30,50 @@ sha256_of() {
 
 FORCE=0
 DEST=""
-for arg in "$@"; do
-  case "$arg" in
+TARGET=""
+
+while [ "$#" -gt 0 ]; do
+  case "$1" in
     --force|-f)
       FORCE=1
+      shift
+      ;;
+    --target)
+      if [ -n "$TARGET" ]; then
+        usage
+        exit 1
+      fi
+      if [ -z "${2:-}" ]; then
+        usage
+        exit 1
+      fi
+      case "$2" in
+        claude|opencode|both) TARGET="$2" ;;
+        *) usage; exit 1 ;;
+      esac
+      shift 2
       ;;
     -*)
-      echo "usage: $0 [--force] /path/to/target-repo" >&2
+      usage
       exit 1
       ;;
     *)
       if [ -n "$DEST" ]; then
-        echo "usage: $0 [--force] /path/to/target-repo" >&2
+        usage
         exit 1
       fi
-      DEST="$arg"
+      DEST="$1"
+      shift
       ;;
   esac
 done
 
+if [ -z "$TARGET" ]; then
+  TARGET="claude"
+fi
+
 if [ -z "$DEST" ]; then
-  echo "usage: $0 [--force] /path/to/target-repo" >&2
+  usage
   exit 1
 fi
 if [ ! -d "$DEST" ]; then
@@ -54,21 +81,60 @@ if [ ! -d "$DEST" ]; then
   exit 1
 fi
 
-mkdir -p "$DEST/.claude/agents" "$DEST/.claude/skills"
-
-# Installed set: five hardcoded agent files plus every file under the skills
-# tree, as paths relative to $SRC, sorted for deterministic manifest order.
-AGENT_LIST="$(for a in explorer proposer implementer verifier syncer; do
+# Installed set: enumerated per distribution, as paths relative to $SRC.
+#
+# Claude: five hardcoded agent files plus every file under the skills tree —
+# that directory holds nothing but toolkit files, so a `find` is safe.
+CLAUDE_AGENT_LIST="$(for a in explorer proposer implementer verifier syncer; do
   printf '.claude/agents/opsx-%s.md\n' "$a"
 done)"
 
-SKILL_LIST="$(find "$SRC/.claude/skills/opsx-loop" -type f | while IFS= read -r f; do
+CLAUDE_SKILL_LIST="$(find "$SRC/.claude/skills/opsx-loop" -type f | while IFS= read -r f; do
   printf '%s\n' "${f#$SRC/}"
 done)"
 
-INSTALLED_LIST="$(printf '%s\n%s\n' "$AGENT_LIST" "$SKILL_LIST" | LC_ALL=C sort)"
+CLAUDE_LIST="$(printf '%s\n%s\n' "$CLAUDE_AGENT_LIST" "$CLAUDE_SKILL_LIST" | LC_ALL=C sort)"
 
-MANIFEST="$DEST/.claude/.opsx-install-manifest"
+# OpenCode: an explicitly enumerated list. Never `find` over `.opencode/` as a
+# whole — that directory also holds `openspec init --tools opencode` output
+# (`.opencode/commands/opsx-<stage>.md`, `.opencode/skills/openspec-*/`) which
+# belongs to OpenSpec, not to this toolkit, and must never be classified,
+# written, or recorded.
+OPENCODE_AGENT_LIST="$(for a in loop explorer proposer implementer implementer-hard verifier syncer; do
+  printf '.opencode/agents/opsx-%s.md\n' "$a"
+done)"
+
+OPENCODE_COMMAND_LIST=".opencode/commands/opsx-loop.md"
+
+OPENCODE_SKILL_LIST="$(find "$SRC/.opencode/opsx-loop" -type f | while IFS= read -r f; do
+  printf '%s\n' "${f#$SRC/}"
+done)"
+
+OPENCODE_LIST="$(printf '%s\n%s\n%s\n' "$OPENCODE_AGENT_LIST" "$OPENCODE_COMMAND_LIST" "$OPENCODE_SKILL_LIST" | LC_ALL=C sort)"
+
+case "$TARGET" in
+  claude)
+    INSTALLED_LIST="$CLAUDE_LIST"
+    ;;
+  opencode)
+    INSTALLED_LIST="$OPENCODE_LIST"
+    ;;
+  both)
+    INSTALLED_LIST="$(printf '%s\n%s\n' "$CLAUDE_LIST" "$OPENCODE_LIST" | LC_ALL=C sort)"
+    ;;
+esac
+
+CLAUDE_MANIFEST="$DEST/.claude/.opsx-install-manifest"
+OPENCODE_MANIFEST="$DEST/.opencode/.opsx-install-manifest"
+
+# Which distribution a path belongs to, so classification and manifest
+# writing each consult only that distribution's own manifest.
+manifest_for() {
+  case "$1" in
+    .claude/*)   echo "$CLAUDE_MANIFEST" ;;
+    .opencode/*) echo "$OPENCODE_MANIFEST" ;;
+  esac
+}
 
 # Plan pass: classify every destination file without touching the destination.
 # Fed via a here-string (not a pipe) so PLAN_REL/PLAN_CLASS survive the loop.
@@ -77,14 +143,15 @@ PLAN_CLASS=()
 
 while IFS= read -r rel; do
   [ -z "$rel" ] && continue
+  manifest="$(manifest_for "$rel")"
   if [ ! -e "$DEST/$rel" ]; then
     class="new"
   elif cmp -s "$SRC/$rel" "$DEST/$rel"; then
     class="identical"
   else
     class="customized"
-    if [ "$HAVE_SHA" -eq 1 ] && [ -f "$MANIFEST" ]; then
-      recorded_line="$(grep " $rel\$" "$MANIFEST" 2>/dev/null || true)"
+    if [ "$HAVE_SHA" -eq 1 ] && [ -f "$manifest" ]; then
+      recorded_line="$(grep " $rel\$" "$manifest" 2>/dev/null || true)"
       recorded_hash="${recorded_line%%[[:space:]]*}"
       if [ -n "$recorded_hash" ] && [ "$recorded_hash" = "$(sha256_of "$DEST/$rel")" ]; then
         class="stale"
@@ -96,7 +163,8 @@ while IFS= read -r rel; do
 done <<< "$INSTALLED_LIST"
 
 # Decision: refuse before writing anything if any file is customized and the
-# user did not pass --force.
+# user did not pass --force. With --target both this spans the whole union,
+# so a conflict in either distribution blocks writing both.
 CONFLICTS=()
 for i in "${!PLAN_REL[@]}"; do
   if [ "${PLAN_CLASS[$i]}" = "customized" ]; then
@@ -113,10 +181,11 @@ if [ "${#CONFLICTS[@]}" -gt 0 ] && [ "$FORCE" -ne 1 ]; then
   exit 1
 fi
 
-# Commit pass: write every non-identical file, report each, accumulate
-# manifest entries, then set permissions, update .gitignore, and write the
-# manifest.
-MANIFEST_CONTENT=""
+# Commit pass: write every non-identical file, report each, accumulate each
+# distribution's own manifest entries, then set permissions, update
+# .gitignore, and write the manifest of each installed distribution.
+CLAUDE_MANIFEST_CONTENT=""
+OPENCODE_MANIFEST_CONTENT=""
 for i in "${!PLAN_REL[@]}"; do
   rel="${PLAN_REL[$i]}"
   class="${PLAN_CLASS[$i]}"
@@ -126,12 +195,23 @@ for i in "${!PLAN_REL[@]}"; do
   fi
   echo "  $class  $rel"
   if [ "$HAVE_SHA" -eq 1 ]; then
-    MANIFEST_CONTENT="${MANIFEST_CONTENT}$(sha256_of "$SRC/$rel")  $rel
+    entry="$(sha256_of "$SRC/$rel")  $rel
 "
+    case "$rel" in
+      .claude/*)   CLAUDE_MANIFEST_CONTENT="${CLAUDE_MANIFEST_CONTENT}${entry}" ;;
+      .opencode/*) OPENCODE_MANIFEST_CONTENT="${OPENCODE_MANIFEST_CONTENT}${entry}" ;;
+    esac
   fi
 done
 
-chmod +x "$DEST/.claude/skills/opsx-loop/preflight.sh"
+case "$TARGET" in
+  claude)   chmod +x "$DEST/.claude/skills/opsx-loop/preflight.sh" ;;
+  opencode) chmod +x "$DEST/.opencode/opsx-loop/preflight.sh" ;;
+  both)
+    chmod +x "$DEST/.claude/skills/opsx-loop/preflight.sh"
+    chmod +x "$DEST/.opencode/opsx-loop/preflight.sh"
+    ;;
+esac
 
 if [ -d "$DEST/.git" ] && ! grep -qs '^\.opsx-run' "$DEST/.gitignore" 2>/dev/null; then
   printf '\n# opsx-loop run state\n.opsx-run/\n' >> "$DEST/.gitignore"
@@ -139,9 +219,27 @@ if [ -d "$DEST/.git" ] && ! grep -qs '^\.opsx-run' "$DEST/.gitignore" 2>/dev/nul
 fi
 
 if [ "$HAVE_SHA" -eq 1 ]; then
-  printf '%s' "$MANIFEST_CONTENT" > "$MANIFEST"
+  case "$TARGET" in
+    claude)   printf '%s' "$CLAUDE_MANIFEST_CONTENT" > "$CLAUDE_MANIFEST" ;;
+    opencode) printf '%s' "$OPENCODE_MANIFEST_CONTENT" > "$OPENCODE_MANIFEST" ;;
+    both)
+      printf '%s' "$CLAUDE_MANIFEST_CONTENT" > "$CLAUDE_MANIFEST"
+      printf '%s' "$OPENCODE_MANIFEST_CONTENT" > "$OPENCODE_MANIFEST"
+      ;;
+  esac
 fi
 
 echo
 echo "Installed into $DEST"
-echo "Next: cd $DEST && bash .claude/skills/opsx-loop/preflight.sh"
+case "$TARGET" in
+  claude)
+    echo "Next: cd $DEST && bash .claude/skills/opsx-loop/preflight.sh"
+    ;;
+  opencode)
+    echo "Next: cd $DEST && bash .opencode/opsx-loop/preflight.sh"
+    ;;
+  both)
+    echo "Next: cd $DEST && bash .claude/skills/opsx-loop/preflight.sh   (Claude Code)"
+    echo "  or: cd $DEST && bash .opencode/opsx-loop/preflight.sh        (OpenCode)"
+    ;;
+esac

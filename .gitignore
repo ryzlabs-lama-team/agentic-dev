@@ -1,0 +1,6 @@
+
+# opsx-loop run state
+.opsx-run/
+
+# per-checkout install provenance (both distributions)
+.opsx-install-manifest
