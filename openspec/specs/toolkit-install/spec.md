@@ -6,11 +6,14 @@ Defines the clobber guard on the opsx-loop toolkit installer: how it classifies 
 present at the destination, when it refuses to write, and how it records the provenance of what it
 wrote so a later upgrade can tell a stale copy apart from a user's customization.
 
-The toolkit ships two distributions — Claude Code and OpenCode — selected by the installer's
-`--target` flag, each with its own installed set and its own provenance manifest. The **installed
-set** for a given target is defined normatively by "Requirement: The installed set is determined by
-the selected target" below; this Purpose section does not restate that list and should not be
-treated as authoritative if it ever appears to diverge from the requirement.
+The toolkit source lives under `opsx-loop/` in this repository and ships three distributions —
+Claude Code, OpenCode, and GitHub Copilot — selected by the installer's `--target` flag. The
+installer copies files from `opsx-loop/.claude/`, `opsx-loop/.opencode/`, or
+`opsx-loop/.github/` into the corresponding destination paths without the `opsx-loop/` prefix.
+Each distribution has its own installed set and provenance manifest. The **installed set** for a
+given target is defined normatively by "Requirement: The installed set is determined by the
+selected target" below; this Purpose section does not restate that list and should not be treated
+as authoritative if it ever appears to diverge from the requirement.
 
 The installer's pre-existing behavior (its argument shape, which files it copies, the `chmod +x` on
 `preflight.sh`, and the `.gitignore` append) is deliberately **not** restated here as requirements.
@@ -22,18 +25,23 @@ This capability specifies the clobber guard and nothing else.
 
 The **installed set** SHALL be a function of the selected target, and this requirement SHALL be the
 authoritative definition of it for every other requirement in this capability. Each member of the
-installed set is written to the destination path mirroring its path under the source.
+installed set is written to the corresponding destination path after removing the source
+`opsx-loop/` prefix.
 
-For the `claude` target the installed set SHALL be the five `.claude/agents/opsx-*.md` agent files
-plus every regular file found by recursively enumerating the source `.claude/skills/opsx-loop/`
-directory at run time.
+For the `claude` target the installed set SHALL be the five
+`opsx-loop/.claude/agents/opsx-*.md` source agent files plus every regular file found by
+recursively enumerating the source `opsx-loop/.claude/skills/opsx-loop/` directory at run time.
 
 For the `opencode` target the installed set SHALL be an **explicitly enumerated** list: the seven
-`.opencode/agents/opsx-*.md` agent files, `.opencode/commands/opsx-loop.md`, and every regular file
-found by recursively enumerating the source `.opencode/opsx-loop/` directory at run time. The
-installer SHALL NOT build this list by recursively enumerating `.opencode/` as a whole.
+`opsx-loop/.opencode/agents/opsx-*.md` source agent files,
+`opsx-loop/.opencode/commands/opsx-loop.md`, and every regular file found by recursively
+enumerating the source `opsx-loop/.opencode/opsx-loop/` directory at run time. The installer SHALL
+NOT build this list by recursively enumerating `opsx-loop/.opencode/` as a whole.
 
-For the `copilot` target the installed set SHALL be an **explicitly enumerated** list: the seven `.github/agents/opsx-*.agent.md` files and every regular file found by recursively enumerating the source `.github/opsx-loop/` directory at run time. The installer SHALL NOT build this list by recursively enumerating `.github/` as a whole.
+For the `copilot` target the installed set SHALL be an **explicitly enumerated** list: the seven
+`opsx-loop/.github/agents/opsx-*.agent.md` source files and every regular file found by recursively
+enumerating the source `opsx-loop/.github/opsx-loop/` directory at run time. The installer SHALL
+NOT build this list by recursively enumerating `opsx-loop/.github/` as a whole.
 
 For the `all` target the installed set SHALL be exactly the union of the `claude`, `opencode`, and `copilot` sets.
 
@@ -56,27 +64,30 @@ installer's source tree.
 
 #### Scenario: OpenSpec-generated command files are ignored in the source
 
-- **WHEN** the installer's source tree contains `.opencode/commands/opsx-explore.md` and other
-  OpenSpec-generated stage commands, and the installer runs with the `opencode` target
+- **WHEN** the installer's source tree contains
+  `opsx-loop/.opencode/commands/opsx-explore.md` and other OpenSpec-generated stage commands, and
+  the installer runs with the `opencode` target
 - **THEN** none of those files appear in the installer's classification output, none is written to
   the destination, and none appears in any manifest
 
 #### Scenario: OpenSpec-generated skills are ignored in the source
 
-- **WHEN** the installer's source tree contains `.opencode/skills/openspec-*/SKILL.md` files and
-  the installer runs with the `opencode` or `all` target
+- **WHEN** the installer's source tree contains
+  `opsx-loop/.opencode/skills/openspec-*/SKILL.md` files and the installer runs with the
+  `opencode` or `all` target
 - **THEN** no file under `.opencode/skills/` is classified, written, or recorded
 
 #### Scenario: Claude target installed set is unchanged
 
 - **WHEN** the installer runs with the `claude` target
-- **THEN** the installed set is exactly the five `.claude/agents/opsx-*.md` files plus every regular
-  file under the source `.claude/skills/opsx-loop/`, and no file under `.opencode/` is classified,
-  written, or recorded
+- **THEN** the installed set is exactly the five `opsx-loop/.claude/agents/opsx-*.md` source files
+  plus every regular file under `opsx-loop/.claude/skills/opsx-loop/`, and no file under
+  `.opencode/` at the destination is classified, written, or recorded
 
 #### Scenario: OpenSpec GitHub assets are ignored
 
-- **WHEN** the source contains `.github/skills/openspec-*` and `.github/prompts/opsx-*.prompt.md` files and the installer runs with `copilot` or `all`
+- **WHEN** the source contains `opsx-loop/.github/skills/openspec-*` and
+  `opsx-loop/.github/prompts/opsx-*.prompt.md` files and the installer runs with `copilot` or `all`
 - **THEN** none of those files is classified, written, or recorded
 
 #### Scenario: All target installs all distributions

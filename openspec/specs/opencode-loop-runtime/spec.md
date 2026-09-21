@@ -7,6 +7,10 @@ mode and model tier of each, the permission posture that replaces Claude Code's 
 how retry escalation works without a per-call model override, how agents resolve their stage
 instructions, how the human gate is presented, and what preflight must assert before a run starts.
 
+Toolkit source files live under `opsx-loop/` in this repository. Unless stated otherwise, paths in
+the requirements below are paths in a target repository after installation; source paths add the
+`opsx-loop/` prefix. The toolkit README is `opsx-loop/README.md`.
+
 ## Requirements
 
 ### Requirement: The OpenCode agent set is seven files under `.opencode/agents/`
@@ -50,7 +54,7 @@ use the high-capability model tier (the OpenCode equivalent of the Claude tree's
 `opsx-implementer` and `opsx-syncer` SHALL use the fast model tier (the equivalent of `sonnet`).
 
 The concrete `provider/model` identifiers SHALL be confirmed against the models the OpenCode
-installation actually offers, and SHALL be documented in a single table in `README.md`. This
+installation actually offers, and SHALL be documented in a single table in `opsx-loop/README.md`. This
 specification SHALL NOT be read as pinning any particular identifier string.
 
 #### Scenario: Every agent pins a model
@@ -66,7 +70,7 @@ specification SHALL NOT be read as pinning any particular identifier string.
 
 #### Scenario: Tier allocation matches the Claude tree
 
-- **WHEN** the OpenCode model table in `README.md` is compared against the Claude-tree model
+- **WHEN** the OpenCode model table in `opsx-loop/README.md` is compared against the Claude-tree model
   allocation
 - **THEN** each stage is served by the same tier in both runtimes, with `opsx-implementer-hard`
   occupying the high tier that the Claude tree reaches via retry-round escalation
@@ -233,7 +237,7 @@ exists. No OpenCode agent body SHALL reference `.claude/commands/opsx/<stage>.md
 `opsx-verifier` SHALL remain self-contained with no skill and no command file, reading the change's
 state through the OpenSpec CLI.
 
-The resolution chain SHALL be documented in `README.md` for both runtimes.
+The resolution chain SHALL be documented in `opsx-loop/README.md` for both runtimes.
 
 #### Scenario: No stale Claude paths
 
@@ -332,7 +336,7 @@ rule that retries get a fresh subagent, and the rule that stages run serially SH
 identically in both distributions.
 
 Where the two runtimes necessarily differ — the escalation mechanism and the instruction-resolution
-paths — `README.md` SHALL present the difference in a single comparison rather than as two divergent
+paths — `opsx-loop/README.md` SHALL present the difference in a single comparison rather than as two divergent
 narratives.
 
 #### Scenario: Verifier is always a separate spawn
@@ -349,6 +353,6 @@ narratives.
 
 #### Scenario: Runtime differences are documented once
 
-- **WHEN** `README.md` is read
+- **WHEN** `opsx-loop/README.md` is read
 - **THEN** it contains one comparison covering the escalation mechanism and instruction-resolution
   differences between the Claude Code and OpenCode distributions

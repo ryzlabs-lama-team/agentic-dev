@@ -4,6 +4,10 @@
 
 Defines the GitHub Copilot distribution of the opsx loop, with VS Code as the required orchestration runtime and portable custom-agent profiles for other Copilot runtimes where supported.
 
+Toolkit source files live under `opsx-loop/` in this repository. Unless stated otherwise, paths in
+the requirements below are paths in a target repository after installation; source paths add the
+`opsx-loop/` prefix. The toolkit README is `opsx-loop/README.md`.
+
 ## Requirements
 
 ### Requirement: The Copilot distribution exposes one coordinator and six worker agents
@@ -24,7 +28,7 @@ The coordinator SHALL be allowed to delegate only to those six workers. Workers 
 
 Every Copilot agent profile SHALL declare a non-empty `model` configuration rather than relying solely on the active runtime default. The allocation SHALL retain the existing intent: Luna for `opsx-loop` and `opsx-syncer`, Terra for `opsx-explorer` and `opsx-implementer`, and Sol for `opsx-proposer`, `opsx-implementer-hard`, and `opsx-verifier`.
 
-The profiles and README SHALL identify any ordered model fallback values and SHALL state that model availability and fallback selection depend on the Copilot client and subscription. Release validation SHALL confirm that each profile has at least one configured model available in the supported VS Code environment.
+The profiles and `opsx-loop/README.md` SHALL identify any ordered model fallback values and SHALL state that model availability and fallback selection depend on the Copilot client and subscription. Release validation SHALL confirm that each profile has at least one configured model available in the supported VS Code environment.
 
 #### Scenario: Every profile declares its allocated tier
 - **WHEN** the seven Copilot profiles are inspected
