@@ -42,11 +42,12 @@ To make `sw-manager` the default for the repository, add `"agent": "sw-manager"`
 `.claude/settings.json`. The installer leaves your settings alone.
 
 The installer copies six agents and `.claude/sw-factory/` (protocol, references, templates, guard
-hook, preflight). It also:
+hook, preflight, usage report). It also:
 
 - creates `.sw-factory/config.yaml` **once** and never overwrites it;
-- merges the ownership guard into `.claude/settings.json` (`hooks.PreToolUse`), keeping your
-  existing settings. It never touches invalid JSON and prints the entry for you to add instead;
+- merges two hooks into `.claude/settings.json`, keeping your existing settings: the ownership
+  guard (`hooks.PreToolUse`) and the usage snapshot (`hooks.SessionEnd`). It never touches invalid
+  JSON and prints the entries for you to add instead;
 - gitignores `.sw-factory/runs/`.
 
 Like opsx-loop's installer, it refuses to overwrite files you have customized since the last
@@ -164,6 +165,55 @@ Why settings rather than agent frontmatter: the docs say frontmatter `hooks:` fi
 and `--agent` sessions. In Claude Code 2.1.318 they did not fire in either mode. A project
 `settings.json` hook did, and `agent_type` was present for both subagents and `--agent` sessions.
 
+## Measuring consumption
+
+[`usage.py`](.claude/sw-factory/usage.py) reports what a run consumed: tokens, cost, API calls and
+peak context per agent, phase, track, model or session. It reads the transcripts Claude Code
+already writes for every session and subagent. No agent runs it, reads its output or knows it
+exists, so measuring adds nothing to any agent's context.
+
+```sh
+python3 .claude/sw-factory/usage.py report                   # every run, by phase and agent
+python3 .claude/sw-factory/usage.py report customer-portal   # one run
+python3 .claude/sw-factory/usage.py report --by track        # or phase | model | session | run
+python3 .claude/sw-factory/usage.py report --format csv      # or json
+```
+
+```
+sw-factory usage · run customer-portal · 3 sessions (2 ended) · 2026-11-06 → 2026-11-07 · ~$14.82
+
+Phase  Agent       Track      Models      Spawns  Calls  Input  Cache W  Cache R  Output  Peak ctx    Cost
+—      sw-manager  —          opus-5-5         —    212   1.2k   310.4k     8.1M   41.3k     96.2k   $5.10
+—      po          —          opus-5-5         2     38     90    61.2k     1.1M   12.4k     48.0k   $0.92
+P2     sw-builder  subagents  sonnet-5-5       2    141    310   190.7k    11.6M   60.2k     71.5k   $2.31
+P2     sw-qa       subagents  opus-5-5         2     57    120    88.0k     2.2M    9.3k     55.1k  ~$1.40
+```
+
+Run it **in a terminal of its own**. Running it with `!` inside the sw-manager session would put
+the report into that session's context.
+
+- **Attribution.** A subagent's run, phase and track come from its spawn prompt (`RUN:`,
+  `TRACK:`, the `#P<n>` work package, the `qa-P<n>-…` findings path). A nested consultation, such as
+  a po asked by a builder, inherits from the agent that spawned it. A spawn without these fields,
+  such as an `opsx-*` stage agent, inherits the sw-manager's current run. The sw-manager's own usage
+  is split by the run it was working on, which comes from the last run it spawned for or whose
+  run-state files it touched. Peak context is the largest single prompt. It shows how well the
+  sw-manager's context discipline holds over a long run.
+- **Cost.** When a session ends, Claude Code records its own cost per model, subagents included.
+  The report splits that figure across the session's agents by weighted tokens, so its totals
+  match Claude Code. Usage that has no recorded cost yet, such as a session still open, is priced
+  at the rate seen in ended sessions and marked `~`.
+- **Snapshots.** The `SessionEnd` hook saves a summary of each factory session to
+  `.sw-factory/runs/.usage/<session>.json`. It runs after the session's last turn, so its output
+  reaches no model. It returns at once and does the parsing in a detached process. Reports read
+  these summaries, so they keep working after Claude Code deletes old transcripts (30 days by
+  default, `cleanupPeriodDays`).
+- **Caveat.** The transcript format is internal to Claude Code and may change between versions.
+  If the report finds factory sessions it cannot parse, it says so on stderr rather than
+  reporting zero.
+
+`tests/usage-test.sh` covers parsing, attribution, cost splitting and the hook (21 cases).
+
 ## Artifacts in the target repo
 
 ```
@@ -180,6 +230,7 @@ docs/
     triage.md                             sw-architect
     clarifications.md                     po / sw-architect (one at a time)
     qa-<P<n>|direct>-<round>.md           sw-qa
+    .usage/<session>.json                 usage snapshots (SessionEnd hook; no agent reads them)
 ```
 
 Templates for every document are in [`.claude/sw-factory/templates/`](.claude/sw-factory/templates/).
@@ -230,12 +281,13 @@ Templates for every document are in [`.claude/sw-factory/templates/`](.claude/sw
     sw-manager.md   po.md   sw-architect.md   sw-planner.md   sw-builder.md   sw-qa.md
   sw-factory/
     preflight.sh                    factory checks + TRACKS line
+    usage.py                        token and cost report (for the human; agents never read it)
     hooks/guard.sh                  document ownership + spawn allowlist
     protocols/clarification.md      the builder ↔ po / sw-architect contract
     references/
       track-selection.md            signals → level → track
       tracks/{direct,subagents,opsx-loop}.md   playbooks
     templates/                      prd, stories, hld, lld, adr, plan, ledger, config
-tests/guard-test.sh
+tests/guard-test.sh   tests/usage-test.sh
 install.sh
 ```

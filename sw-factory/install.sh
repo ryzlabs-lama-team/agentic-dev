@@ -68,7 +68,7 @@ for i in "${!PLAN_REL[@]}"; do
   echo "  $class  $rel"
   [ "$HAVE_SHA" -eq 0 ] || MANIFEST_BODY+="$(sha256_of "$SRC/$rel")  $rel"$'\n'
 done
-chmod +x "$DEST/.claude/sw-factory/preflight.sh" "$DEST/.claude/sw-factory/hooks/guard.sh"
+chmod +x "$DEST/.claude/sw-factory/preflight.sh" "$DEST/.claude/sw-factory/hooks/guard.sh" "$DEST/.claude/sw-factory/usage.py"
 if [ "$HAVE_SHA" -eq 1 ]; then printf '%s' "$MANIFEST_BODY" > "$MANIFEST"
 else echo 'warning: no SHA-256 utility found; manifest not written and differing files are treated as customized' >&2; fi
 
@@ -80,35 +80,43 @@ else
   echo "  new  .sw-factory/config.yaml"
 fi
 
-# Wire the ownership guard as a project PreToolUse hook. Agent-frontmatter hooks did not fire in
-# Claude Code 2.1.318, so the guard runs from settings and dispatches on the hook's agent_type.
+# Project hooks. Agent-frontmatter hooks did not fire in Claude Code 2.1.318, so both run from
+# settings: the ownership guard (PreToolUse, dispatching on the hook's agent_type) and the usage
+# snapshot (SessionEnd, which runs after the session's last turn and never reaches any context).
 SETTINGS="$DEST/.claude/settings.json"
-MATCHER='Write|Edit|NotebookEdit|Agent|Task'
-HOOK_CMD='bash "${CLAUDE_PROJECT_DIR}/.claude/sw-factory/hooks/guard.sh"'
-ENTRY="{\"matcher\":\"$MATCHER\",\"hooks\":[{\"type\":\"command\",\"command\":\"${HOOK_CMD//\"/\\\"}\"}]}"
-merge_hook() { # merge_hook <in> <out>: append ENTRY to hooks.PreToolUse
+hook_entry() { # hook_entry <command> [matcher]: one hooks.<event> entry as JSON
+  printf '{%s"hooks":[{"type":"command","command":"%s"}]}' "${2:+\"matcher\":\"$2\",}" "${1//\"/\\\"}"
+}
+merge_hook() { # merge_hook <event> <entry> <in> <out>: append <entry> to hooks.<event>
   if command -v jq >/dev/null 2>&1; then
-    jq --argjson e "$ENTRY" '.hooks.PreToolUse = ((.hooks.PreToolUse // []) + [$e])' "$1" > "$2"
+    jq --arg ev "$1" --argjson e "$2" '.hooks[$ev] = ((.hooks[$ev] // []) + [$e])' "$3" > "$4"
   elif command -v python3 >/dev/null 2>&1; then
     python3 -I -c 'import json, sys
 s = json.load(open(sys.argv[1])); e = json.loads(sys.argv[3])
-s.setdefault("hooks", {}).setdefault("PreToolUse", []).append(e)
-json.dump(s, open(sys.argv[2], "w"), indent=2); open(sys.argv[2], "a").write("\n")' "$1" "$2" "$ENTRY"
+s.setdefault("hooks", {}).setdefault(sys.argv[4], []).append(e)
+json.dump(s, open(sys.argv[2], "w"), indent=2); open(sys.argv[2], "a").write("\n")' "$3" "$4" "$2" "$1"
   else return 1; fi
 }
-if [ ! -e "$SETTINGS" ]; then
-  printf '{\n  "hooks": {\n    "PreToolUse": [\n      %s\n    ]\n  }\n}\n' "$ENTRY" > "$SETTINGS"
-  echo "  new  .claude/settings.json (PreToolUse guard)"
-elif grep -q 'sw-factory/hooks/guard.sh' "$SETTINGS"; then
-  echo "  kept  .claude/settings.json (guard already wired)"
-elif merge_hook "$SETTINGS" "$SETTINGS.sw-factory.tmp" 2>/dev/null; then
-  mv "$SETTINGS.sw-factory.tmp" "$SETTINGS"; echo "  merged  .claude/settings.json += PreToolUse guard"
-else
-  rm -f "$SETTINGS.sw-factory.tmp"
-  echo "warning: could not merge the guard into .claude/settings.json (no jq/python3, or invalid JSON)." >&2
-  echo "         Add this entry to hooks.PreToolUse yourself:" >&2
-  echo "         $ENTRY" >&2
-fi
+wire_hook() { # wire_hook <event> <marker> <entry> <label>: add <entry> unless <marker> is already wired
+  local tmp="$SETTINGS.sw-factory.tmp"
+  if [ ! -e "$SETTINGS" ]; then
+    printf '{\n  "hooks": {\n    "%s": [\n      %s\n    ]\n  }\n}\n' "$1" "$3" > "$SETTINGS"
+    echo "  new  .claude/settings.json ($1 $4)"
+  elif grep -q "$2" "$SETTINGS"; then
+    echo "  kept  .claude/settings.json ($4 already wired)"
+  elif merge_hook "$1" "$3" "$SETTINGS" "$tmp" 2>/dev/null; then
+    mv "$tmp" "$SETTINGS"; echo "  merged  .claude/settings.json += $1 $4"
+  else
+    rm -f "$tmp"
+    echo "warning: could not merge the $4 into .claude/settings.json (no jq/python3, or invalid JSON)." >&2
+    echo "         Add this entry to hooks.$1 yourself:" >&2
+    echo "         $3" >&2
+  fi
+}
+wire_hook PreToolUse 'sw-factory/hooks/guard.sh' \
+  "$(hook_entry 'bash "${CLAUDE_PROJECT_DIR}/.claude/sw-factory/hooks/guard.sh"' 'Write|Edit|NotebookEdit|Agent|Task')" guard
+wire_hook SessionEnd 'sw-factory/usage.py' \
+  "$(hook_entry 'python3 "${CLAUDE_PROJECT_DIR}/.claude/sw-factory/usage.py" snapshot --hook >/dev/null 2>&1 || true')" 'usage snapshot'
 
 if [ -d "$DEST/.git" ] && ! grep -qs '^\.sw-factory/runs' "$DEST/.gitignore"; then
   printf '\n# sw-factory run state\n.sw-factory/runs/\n' >> "$DEST/.gitignore"; echo '  .gitignore += .sw-factory/runs/'
