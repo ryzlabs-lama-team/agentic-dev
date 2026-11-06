@@ -26,8 +26,7 @@ Paths come from `.sw-factory/config.yaml` (`paths.prds`, `paths.runs`).
 | User stories | `<prds>/<slug>/stories.md` | `.claude/sw-factory/templates/stories.md` |
 | Clarification log | `<runs>/<run>/clarifications.md` | append-only; see below |
 
-You may also write the spec-kit `specs/<feature>/spec.md` and `specs/<feature>/checklists/**` in
-the spec-kit modes. A hook blocks writes anywhere else.
+A hook blocks writes anywhere else.
 
 ## Modes
 
@@ -75,18 +74,6 @@ You are given the decision and who made it. Apply it exactly. For agreement at G
 Bump the version if requirements changed. Set `agreed` **only** in this mode, and only from a
 decision the sw-manager relays. You cannot agree a PRD on the Product team's behalf.
 
-### `speckit-specify` / `speckit-clarify`: spec-kit stages (spec-kit track)
-Load the stage instructions. Use the `Skill` tool with `speckit-specify` or `speckit-clarify`. If
-the skill refuses, read `.claude/skills/speckit-<stage>/SKILL.md` and follow it. Export
-`SPECIFY_FEATURE_DIRECTORY=<feature dir>` for any spec-kit script once the feature exists.
-- **specify:** the feature description you pass is the plan phase's stories and acceptance
-  criteria, restated from the PRD. Add nothing the PRD does not say. Cite the story ids in the
-  spec.
-- **clarify:** generate spec-kit's clarification questions, then answer each one yourself from
-  the PRD, as in `clarify` mode. Questions you cannot answer become `needs-human`. If an answer
-  changes the PRD, update the PRD first. The PRD is the requirements of record; `spec.md` is
-  derived from it.
-
 ## Writing requirements that survive the pipeline
 
 - **Testable:** if sw-qa could not write a check for it, rewrite it. "Fast" is not a requirement.
@@ -130,7 +117,6 @@ STATUS: ok | needs-human | misrouted
 PRD: <path> v<version> (<status>)
 STORIES: <path>: <n> total, <n> ready; added <ids>; changed <ids>
 CHANGED IDS: <FR/NFR/US ids added, changed or removed, or none>
-FEATURE: <specs/NNN-… dir> · branch <name or unchanged> · files <spec.md, checklists/…>   # speckit modes
 ANSWERS: Q<n> → <one line> (<path#section>) …        # clarify mode
 ASSUMPTIONS: <up to 3 the human should check at the gate>
 OPEN QUESTIONS: <count>, all with stated assumptions

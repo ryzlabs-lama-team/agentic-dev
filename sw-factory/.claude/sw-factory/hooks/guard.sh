@@ -122,13 +122,12 @@ DESIGNS="$(cfg_path tech_designs docs/tech-designs)"
 ADRS="$(cfg_path adrs docs/adrs)"
 PLANS="$(cfg_path plans docs/plans)"
 RUNS="$(cfg_path runs .sw-factory/runs)"
-SPECKIT_DESIGN='specs/*/plan.md specs/*/research.md specs/*/data-model.md specs/*/quickstart.md specs/*/contracts/*'
 GUARDED='.sw-factory/config.yaml .claude/*'
 
 owner_of() {
-  if matches "$1" "$PRDS/*" 'specs/*/spec.md' 'specs/*/checklists/*'; then echo po
-  elif matches "$1" "$DESIGNS/*" "$ADRS/*" '.specify/*' $SPECKIT_DESIGN; then echo sw-architect
-  elif matches "$1" "$PLANS/*" 'specs/*/tasks.md'; then echo sw-planner
+  if matches "$1" "$PRDS/*"; then echo po
+  elif matches "$1" "$DESIGNS/*" "$ADRS/*"; then echo sw-architect
+  elif matches "$1" "$PLANS/*"; then echo sw-planner
   elif matches "$1" 'openspec/*'; then echo 'the OpenSpec stage agents'
   else echo 'the human (via sw-manager)'; fi
 }
@@ -137,14 +136,12 @@ deny() {
 }
 
 case "$ROLE" in
-  po)           matches "$rel" "$PRDS/*" "$RUNS/*" 'specs/*/spec.md' 'specs/*/checklists/*' || deny ;;
-  sw-architect) matches "$rel" "$DESIGNS/*" "$ADRS/*" "$RUNS/*" '.specify/memory/constitution.md' \
-                  '.specify/templates/*' $SPECKIT_DESIGN || deny ;;
-  sw-planner)   matches "$rel" "$PLANS/*" "$RUNS/*" 'specs/*/tasks.md' || deny ;;
+  po)           matches "$rel" "$PRDS/*" "$RUNS/*" || deny ;;
+  sw-architect) matches "$rel" "$DESIGNS/*" "$ADRS/*" "$RUNS/*" || deny ;;
+  sw-planner)   matches "$rel" "$PLANS/*" "$RUNS/*" || deny ;;
   sw-qa)        matches "$rel" "$RUNS/*" || deny ;;
   sw-manager)   matches "$rel" "$RUNS/*" '.opsx-run/*' || deny ;;
-  sw-builder)   matches "$rel" "$PRDS/*" "$DESIGNS/*" "$ADRS/*" 'openspec/*' '.specify/*' \
-                  'specs/*/spec.md' 'specs/*/checklists/*' $SPECKIT_DESIGN $GUARDED && deny ;;
+  sw-builder)   matches "$rel" "$PRDS/*" "$DESIGNS/*" "$ADRS/*" 'openspec/*' $GUARDED && deny ;;
   opsx-*)       matches "$rel" "$PRDS/*" "$DESIGNS/*" "$ADRS/*" "$PLANS/*" $GUARDED && deny ;;
 esac
 exit 0

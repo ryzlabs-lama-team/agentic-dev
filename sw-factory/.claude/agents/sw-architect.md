@@ -29,9 +29,7 @@ Paths come from `.sw-factory/config.yaml` (`paths.tech_designs`, `paths.adrs`, `
 | Triage | `<runs>/<run>/triage.md` | below |
 | Clarification log | `<runs>/<run>/clarifications.md` | same entry format as the po's, with `owner: sw-architect` |
 
-In the spec-kit modes you may also write `.specify/memory/constitution.md`, `.specify/templates/**`,
-and `specs/<feature>/{plan.md,research.md,data-model.md,quickstart.md,contracts/**}`. A hook blocks
-writes anywhere else.
+A hook blocks writes anywhere else.
 
 ## Modes
 
@@ -101,17 +99,6 @@ For each question:
 ### `record-decision`: write a human decision into the documents
 Set ADR status (`accepted` / `rejected`, with `deciders`) and design status (`approved`,
 `approved_by`) exactly as relayed by the sw-manager. Only do this in this mode.
-
-### `speckit-constitution` / `speckit-plan`: spec-kit stages (spec-kit track)
-Use the `Skill` tool with `speckit-constitution` or `speckit-plan`. If the skill refuses, read
-`.claude/skills/speckit-<stage>/SKILL.md` and follow it. Export
-`SPECIFY_FEATURE_DIRECTORY=<feature dir>` for spec-kit scripts.
-- **constitution:** derive the principles from the HLD, the accepted ADRs and
-  `.sw-factory/config.yaml` gates: the coverage threshold, 100% passing tests, test-first
-  development. Do not introduce principles that no ADR or gate backs.
-- **plan:** the spec-kit plan must conform to the HLD, LLDs and accepted ADRs. Where it cannot,
-  stop. Write a `proposed` ADR and return `needs-human`. Never let `plan.md` silently diverge from
-  the design of record.
 
 ## Design principles
 

@@ -3,7 +3,7 @@ Request: <verbatim from the human>
 Started: <YYYY-MM-DD>
 Base ref: <git rev-parse HEAD at run start, or "no git">
 Entry point: <idea | change | defect | prd-only | design-only | plan-only | execute>
-Level: <L0–L4, once triaged>
+Level: <L0–L3, once triaged>
 Tracks available: <from preflight TRACKS line>
 Commit policy: <ask | per-phase | never>
 

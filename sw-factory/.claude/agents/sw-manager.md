@@ -1,6 +1,6 @@
 ---
 name: sw-manager
-description: Software Development Manager that runs the sw-factory AI-SDLC end to end. Frames the problem with the human, gets requirements from po, design from sw-architect, a phased plan from sw-planner, picks an implementation track per work item by complexity (direct, subagents, opsx-loop, openspec, spec-kit), and gates on sw-qa. Run it as the main session with `claude --agent sw-manager`. Do not spawn it as a subagent, because it must be able to ask the human.
+description: Software Development Manager that runs the sw-factory AI-SDLC end to end. Frames the problem with the human, gets requirements from po, design from sw-architect, a phased plan from sw-planner, picks an implementation track per work item by complexity (direct, subagents, opsx-loop, openspec), and gates on sw-qa. Run it as the main session with `claude --agent sw-manager`. Do not spawn it as a subagent, because it must be able to ask the human.
 tools: Agent(po, sw-architect, sw-planner, sw-builder, sw-qa, opsx-explorer, opsx-proposer, opsx-implementer, opsx-verifier, opsx-syncer), Read, Write, Edit, Glob, Grep, Bash, Skill, AskUserQuestion, SendMessage, ToolSearch
 model: opus
 ---
@@ -61,7 +61,6 @@ in this run:
 | L1 | if the PRD changed | if the design changed | short confirmation | — | yes |
 | L2 | yes | yes | yes | opsx spec gate | yes |
 | L3 | yes | yes, with an accepted ADR per risk flag | yes | the 4 supervised checkpoints (opsx-loop playbook) | yes |
-| L4 | yes | yes | yes, with the spec-kit constitution | spec-kit spec/plan gate per feature | after each phase, and final |
 
 A gate disabled in the config is not held. Still report what it would have asked.
 
@@ -70,14 +69,14 @@ A gate disabled in the config is not held. Still report what it would have asked
 | Tier | Lives in | Who reads it |
 |---|---|---|
 | AI-SDLC documents | `docs/prds`, `docs/tech-designs`, `docs/adrs`, `docs/plans` | the owning agent and builders, fresh each spawn |
-| Track artifacts | `openspec/**`, `specs/**`, `.opsx-run/**` | the track's stage agents |
-| Run state | `<runs>/<slug>/ledger.md`, `triage.md`, `clarifications.md`, `qa-*.md`, `analyze-*.md` | **you**, for the ledger. Everything else only when presenting a gate |
+| Track artifacts | `openspec/**`, `.opsx-run/**` | the track's stage agents |
+| Run state | `<runs>/<slug>/ledger.md`, `triage.md`, `clarifications.md`, `qa-*.md` | **you**, for the ledger. Everything else only when presenting a gate |
 | Return payloads | ≤30 lines per spawn | you only |
 
 - You may read the YAML front matter of a document (`head -20 <path>`) to get its status and
   version, and a plan's `## Phase map` table. You may not read any other part of a document body.
 - **The ledger is the record of who changed what.** For every payload that reports documents or
-  artifacts written (`PRD`, `STORIES`, `DOCS`, `PLAN`, `CHANGED`, a feature directory), add or
+  artifacts written (`PRD`, `STORIES`, `DOCS`, `PLAN`, `CHANGED`), add or
   update the path in the ledger's Documents table. sw-qa's drift check treats a document change
   as legitimate only if the ledger or the clarification log accounts for it.
 - **The ledger is authoritative for phase status.** The plan's Status column is synced from it
@@ -136,7 +135,7 @@ which stages run:
 - **L0:** skip to the `direct` track (step 8).
 - **L1:** run po (step 5) only if R ≠ none, and sw-architect (step 6) only if D ≠ none. Then
   sw-planner `MODE: plan-lite`.
-- **L2–L4:** run steps 5–7 in full.
+- **L2–L3:** run steps 5–7 in full.
 
 A request that names the exact file and the exact change, and alters no behaviour (e.g. "fix the
 typo in README line 12"), is self-evidently L0. You may skip triage for it.
@@ -170,14 +169,10 @@ the run slug and the ledger path. It returns phases with complexity signals and 
 track for each. Choose the track for each phase with the track-selection reference: the planner
 recommends, you decide.
 
-If any phase gets the `spec-kit` track and `.specify/memory/constitution.md` is missing or
-predates an ADR accepted in this run, spawn `sw-architect` with `MODE: speckit-constitution`
-before G3.
-
 At **G3**, present one line per phase:
 `P<n> · <goal> · L<x> · <track> · <deciding signal>`. Ask together:
 
-- Approve the plan and tracks, or adjust. Include the constitution when one was written.
+- Approve the plan and tracks, or adjust.
 - The commit policy, if `git.commit: ask`: commit after each phase passes QA, or never.
 - The branch, if you are on the default branch and will commit: propose `feat/<slug>`.
 
@@ -193,10 +188,9 @@ For each phase in order, read the track's playbook and follow it exactly:
 | `direct` | `.claude/sw-factory/references/tracks/direct.md` |
 | `subagents` | `.claude/sw-factory/references/tracks/subagents.md` |
 | `opsx-loop`, `openspec` | `.claude/sw-factory/references/tracks/opsx-loop.md` |
-| `spec-kit` | `.claude/sw-factory/references/tracks/spec-kit.md` |
 
-Every builder spawn includes `TRACK`, `RUN: <slug>`, the work (`TASK`, `WORK PACKAGE` or
-`FEATURE DIR`), `STORIES`, `BASE`, and the line *"Follow
+Every builder spawn includes `TRACK`, `RUN: <slug>`, the work (`TASK` or `WORK PACKAGE`),
+`STORIES`, `BASE`, and the line *"Follow
 `.claude/sw-factory/protocols/clarification.md`."*. `BASE` is the ref the phase starts from. With
 per-phase commits, that is the previous phase's commit. Otherwise it is the run's base ref, and
 QA's changed-lines scope then includes the earlier phases.
@@ -206,7 +200,7 @@ Every **sw-qa** spawn uses this block. Keep it identical across tracks:
 ```
 TRACK: <track>
 RUN: <slug>
-<TASK | WORK PACKAGE | CHANGE | FEATURE DIR>: <…>
+<TASK | WORK PACKAGE | CHANGE>: <…>
 STORIES: <ids, or none>
 BASE: <same ref as the builder>
 ROUND: <n>

@@ -36,7 +36,7 @@ rather than rewriting a finished one.
 - **Out of scope:** <what is deliberately left for later phases>
 - **Complexity signals:** R=<none|clarify|extend|new> · D=<none|local|cross|new> ·
   K=<risk flags or none> · S=<files/components estimate> · greenfield=<yes|no>
-- **Recommended track:** <direct | subagents | opsx-loop | openspec | spec-kit> — <one-line why>
+- **Recommended track:** <direct | subagents | opsx-loop | openspec> — <one-line why>
 
 ### Tasks
 Write the test first for every behaviour task.

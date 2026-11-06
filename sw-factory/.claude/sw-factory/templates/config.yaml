@@ -26,8 +26,8 @@ commands:
   lint: ""
 
 # Human gates. Setting one to false lets sw-manager proceed on that gate without stopping;
-# it still reports what it would have asked. Track-internal gates (the opsx-loop spec gate,
-# spec-kit's spec/plan gate) cannot be disabled here.
+# it still reports what it would have asked. Track-internal gates (the opsx-loop spec gate and
+# the openspec checkpoints) cannot be disabled here.
 human_gates:
   requirements: true               # PRD agreed with the Product team
   design: true                     # HLD / LLD / ADRs approved
@@ -36,7 +36,7 @@ human_gates:
 
 tracks:
   # Tracks sw-manager may select. Remove one to forbid it even when it is installed.
-  enabled: [direct, subagents, opsx-loop, openspec, spec-kit]
+  enabled: [direct, subagents, opsx-loop, openspec]
   opsx_archive: ask                # ask | yes | no — archive OpenSpec changes after sync
 
 git:

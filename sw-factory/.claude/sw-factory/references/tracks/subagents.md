@@ -1,7 +1,7 @@
-# Track: subagents (L1, and the fallback for L2–L4)
+# Track: subagents (L1, and the fallback for L2–L3)
 
 Use this track for small work inside an existing design. It also stands in for the spec-driven
-tracks when OpenSpec or spec-kit is unavailable. The plan phase is the contract: its tasks,
+tracks when OpenSpec is unavailable. The plan phase is the contract: its tasks,
 acceptance criteria, design references and exit criteria are everything the builder needs.
 
 ```

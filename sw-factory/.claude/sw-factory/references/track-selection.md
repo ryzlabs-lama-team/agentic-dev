@@ -25,18 +25,19 @@ Each signal sets a minimum level, called its **floor**. The work item's level is
 floor** across all signals. Every combination of signals therefore maps to exactly one level.
 Risk escalates the level, and nothing de-escalates it.
 
-| Signal | → L0 | → L1 | → L2 | → L3 | → L4 |
-|---|---|---|---|---|---|
-| R | none, clarify | extend (≤ 2 stories) | extend (> 2 stories), new | — | — |
-| D | none | local | cross | cross **and** S > ~15 files or > 3 components | new |
-| K | none | — | perf-critical | any other flag | — |
-| S | ≤ 3 files | ≤ ~15 files, ≤ 3 components | larger | — | — |
-| G | no | — | — | — | yes |
+| Signal | → L0 | → L1 | → L2 | → L3 |
+|---|---|---|---|---|
+| R | none, clarify | extend (≤ 2 stories) | extend (> 2 stories), new | — |
+| D | none | local | cross, new | cross **and** S > ~15 files or > 3 components |
+| K | none | — | perf-critical | any other flag |
+| S | ≤ 3 files | ≤ ~15 files, ≤ 3 components | larger | — |
+| G | no | — | yes | — |
 
 Examples:
 - A defect touching an interface (R=clarify, D=cross, small) → L2.
 - A new PRD on an existing system (R=new, D=local, G=no) → L2.
-- Auth for a new service (G=yes, K=security) → L4. L4 still requires an ADR per flag, as below.
+- A new service (G=yes, D=new) → L2. Its first OpenSpec change seeds `openspec/specs/` for it.
+- Auth for a new service (G=yes, K=security) → L3.
 
 ## 3. Level → track
 
@@ -46,7 +47,6 @@ Examples:
 | **L1** small | `subagents` | — |
 | **L2** medium | `opsx-loop` | `subagents` with the plan gate and a human checkpoint after QA |
 | **L3** high-risk | `openspec` (supervised) | `subagents` with a human checkpoint after every phase |
-| **L4** greenfield | `spec-kit` | `opsx-loop` per phase if OpenSpec is initialized, else `subagents` |
 
 Any work item with a K flag other than `perf-critical` needs an **accepted ADR** for each such
 flag before implementation starts, at whatever level it lands. The ADR records how the risk is
@@ -58,7 +58,7 @@ The preflight prints a `TRACKS:` line. A track is available only when it is inst
 listed in `tracks.enabled` in the config. If the default track is unavailable, use the fallback
 and tell the human what the fallback gives up. For example, `subagents` instead of `opsx-loop`
 loses the delta specs that keep `openspec/specs/` in sync. Never install or initialize a tool to
-make a track available: no `openspec init`, `specify init`, or toolkit installs. Recommend the
+make a track available: no `openspec init` or toolkit installs. Recommend the
 command to the human and continue with the fallback unless they choose to install it.
 
 ## 5. Overrides

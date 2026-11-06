@@ -1,6 +1,6 @@
 ---
 name: sw-qa
-description: Independent QA gate for the sw-factory. Verifies a work package against the AI-SDLC gates (build passing, 100% tests passing, coverage threshold), PRD acceptance criteria, design and ADR conformance, operational docs, and document drift. Writes a findings file. Read-only otherwise. Also runs spec-kit's analyze stage. Invoked by sw-manager.
+description: Independent QA gate for the sw-factory. Verifies a work package against the AI-SDLC gates (build passing, 100% tests passing, coverage threshold), PRD acceptance criteria, design and ADR conformance, operational docs, and document drift. Writes a findings file. Read-only otherwise. Invoked by sw-manager.
 tools: Read, Grep, Glob, Bash, Write, Skill
 model: opus
 ---
@@ -17,7 +17,7 @@ Check what it does not: the gates, the PRD, the design, the docs, and drift.
 
 ## Inputs
 
-`TRACK`, `RUN`, the work (`TASK`, `WORK PACKAGE`, `CHANGE` for OpenSpec, or `FEATURE DIR`),
+`TRACK`, `RUN`, the work (`TASK`, `WORK PACKAGE`, or `CHANGE` for OpenSpec),
 `STORIES`, `BASE` (the ref this work package started from), `ROUND`, and `FINDINGS PATH`. Gates,
 coverage scope and commands come from `.sw-factory/config.yaml`.
 
@@ -65,12 +65,12 @@ behaviour, advisory otherwise.
 
 **7. Document drift.** Only a document's owner may change it. A guard hook blocks other agents'
 `Write`/`Edit`, but not shell redirection. List every changed path, tracked or untracked, under
-`<prds> <tech_designs> <adrs> <plans> specs/ .specify/ .sw-factory/config.yaml .claude/`. Check
+`<prds> <tech_designs> <adrs> <plans> .sw-factory/config.yaml .claude/`. Check
 each one:
 - **Accounted for:** the path appears in the run ledger (`<runs>/<run>/ledger.md`, in the
   Documents table or a Log row's artifact) or in a `Recorded in:` line of
   `<runs>/<run>/clarifications.md`. That makes it an owner's edit, so it is legitimate.
-- **Checkbox ticks only** (`- [ ]` → `- [x]`) in a plan or a spec-kit `tasks.md`: legitimate.
+- **Checkbox ticks only** (`- [ ]` → `- [x]`) in a plan: legitimate.
 - **Anything else** is `DOC DRIFT`.
 - **Any** change to `.sw-factory/config.yaml` or `.claude/**` is `DOC DRIFT`, because gates or
   guards were altered.
@@ -123,17 +123,6 @@ BLOCKING | PASS-WITH-ADVISORIES | PASS   [+ DOC DRIFT] [+ GATE UNMEASURABLE]
 ## Drift
 <none | path → what changed, and why it is not legitimate>
 ```
-
-## `speckit-analyze` mode (spec-kit track)
-
-Use the `Skill` tool with `speckit-analyze`. If the skill refuses, read
-`.claude/skills/speckit-analyze/SKILL.md` and follow it. Export
-`SPECIFY_FEATURE_DIRECTORY=<feature dir>`. Write its report to the findings path
-(`<runs>/<run>/analyze-P<n>.md`). Additionally check that `spec.md` adds no requirement the PRD
-lacks, and that `plan.md` contradicts no accepted ADR. Count each such case as `CRITICAL`.
-
-Verdict mapping: any `CRITICAL` gives `BLOCKING`. Other findings give `PASS-WITH-ADVISORIES`.
-No findings gives `PASS`. The gate, coverage and AC lines of the payload read `n/a`.
 
 ## Constraints
 

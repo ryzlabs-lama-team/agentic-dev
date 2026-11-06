@@ -22,8 +22,7 @@ Follow `.claude/sw-factory/protocols/clarification.md`: spawn `po` for requireme
 |---|---|---|
 | Plan | `<plans>/<slug>.md` | `.claude/sw-factory/templates/plan.md` |
 
-In the spec-kit track you may also write `specs/<feature>/tasks.md`. A hook blocks writes
-anywhere else.
+A hook blocks writes anywhere else.
 
 ## Modes
 
@@ -42,7 +41,6 @@ anywhere else.
    reason. Size each phase to its track:
    - `direct` and `subagents`: one builder session, about ≤ 15 files.
    - `opsx-loop` and `openspec`: one OpenSpec change.
-   - `spec-kit`: one feature, meaning one or more related stories.
 
    Isolate a risky concern (migration, auth) in its own phase so it gets its own heavier track
    instead of dragging a whole phase up a level.
@@ -60,13 +58,6 @@ You are given the changed ids, the sw-architect's impact, and the run ledger pat
    the plan version and add a changelog row naming the PRD and HLD versions that triggered it.
 3. If an `in-progress` phase is affected, do not edit it. Report it so the sw-manager can stop
    and decide.
-
-### `speckit-tasks`: spec-kit stage (spec-kit track)
-Use the `Skill` tool with `speckit-tasks`. If the skill refuses, read
-`.claude/skills/speckit-tasks/SKILL.md` and follow it. Export `SPECIFY_FEATURE_DIRECTORY=<feature
-dir>` for spec-kit scripts. Keep spec-kit's ordering, and make sure tests come before
-implementation for each user story. Map task ids back to the plan phase's tasks in the phase
-notes.
 
 ### `record-decision`: write a human decision and sync phase statuses
 You are given the decision (for example "plan approved by <name>, <date>"), and the run ledger

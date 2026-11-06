@@ -85,17 +85,6 @@ for t in opsx-loop openspec; do
 done
 [ -z "$opsx_reason" ] && ok "OpenSpec + opsx-loop available" || warn "opsx-loop/openspec tracks unavailable: $opsx_reason"
 
-sk_reason=""
-[ -d .specify ] || sk_reason="no .specify/ directory; run: specify init --here --integration claude"
-if [ -z "$sk_reason" ]; then
-  for s in constitution specify clarify plan tasks analyze implement; do
-    [ -f ".claude/skills/speckit-$s/SKILL.md" ] || { sk_reason="speckit-$s skill missing; run: specify integration install claude"; break; }
-  done
-fi
-if ! enabled spec-kit; then add spec-kit "no(disabled)"
-elif [ -n "$sk_reason" ]; then add spec-kit no; else add spec-kit yes; fi
-[ -z "$sk_reason" ] && ok "spec-kit available" || warn "spec-kit track unavailable: $sk_reason"
-
 echo
 echo "TRACKS:$tracks"
 [ "$fail" -eq 0 ] && echo "preflight passed" || echo "preflight FAILED — fix the items above before running the factory"

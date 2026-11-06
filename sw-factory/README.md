@@ -13,7 +13,6 @@ an independent QA agent.
             po            sw-architect      sw-planner    per phase:     sw-qa          (human
                                             + sw-manager  direct │ subagents │          deploys,
                                                           opsx-loop │ openspec │        monitors)
-                                                          spec-kit
                 ▲                  ▲                          │
                 └── clarify ───────┴──── builders ask ────────┘
 ```
@@ -25,7 +24,7 @@ an independent QA agent.
 | Requirements management: PRDs in `docs/prds/`, agreed with the Product team | `po` writes and maintains `docs/prds/<slug>/prd.md` and `stories.md`. The human confirms agreement at gate G1 |
 | Systems architecture: HLDs, LLDs, ADRs in `docs/tech-designs/`, `docs/adrs/` | `sw-architect` drafts and evolves them. Only the human approves designs and accepts ADRs, at G2 |
 | Planning: plans in `docs/plans/` (`opsx-planner`) | `sw-planner` writes phased plans: infrastructure → scaffolding → basic → complex, test first |
-| Implementation: opsx-loop, opsx-loop turbo, direct input | `sw-manager` picks a track **per phase**: `direct`, `subagents`, `opsx-loop`, `openspec`, `spec-kit` |
+| Implementation: opsx-loop, opsx-loop turbo, direct input | `sw-manager` picks a track **per phase**: `direct`, `subagents`, `opsx-loop`, `openspec` |
 | Gates: >90% coverage, build passing, 100% tests passing | `sw-qa` measures them itself. They are configured in `.sw-factory/config.yaml` |
 | Artifacts: code + docs (build, run, test, deploy, configure, monitor) | `sw-builder` keeps the operational docs current, and `sw-qa` blocks on undocumented config |
 | Ideas: EM agent with PO, Architect, QA agents; talks to the user when AI can't decide | `sw-manager` is the only agent that talks to the human. Everyone else returns `needs-human` |
@@ -64,7 +63,6 @@ the sw-manager never installs anything itself:
 |---|---|
 | `direct`, `subagents` | nothing |
 | `opsx-loop`, `openspec` | `openspec` CLI, `openspec init`, and [opsx-loop](../openspec-agents/opsx-loop/README.md) installed |
-| `spec-kit` | `specify init --here --integration claude` (spec-kit ≥ 0.10 installs Claude skills `speckit-*`) |
 
 ## Use
 
@@ -109,13 +107,13 @@ sw-manager maps them to a level and a track per work item. Full rules:
 |---|---|---|---|
 | L0 trivial | Defect restoring documented behaviour, a few files | `direct` | final report (+ commit question) |
 | L1 small | A story or two inside the existing design | `subagents` | G1/G2 only if docs changed, G3 brief, G4 |
-| L2 medium | Changed behaviour across components, brownfield | `opsx-loop` | G1–G4 + opsx spec gate |
+| L2 medium | Changed behaviour across components, a new PRD, or a new (greenfield) component | `opsx-loop` | G1–G4 + opsx spec gate |
 | L3 high-risk | Migration, security, breaking API, irreversible ops | `openspec` (opsx agents, 4 supervised checkpoints) | G1–G4 + accepted ADR per risk |
-| L4 greenfield | New product, service or component | `spec-kit` (stages run by their owning agents) | G1–G4, constitution at G3, spec/plan gate per feature, G4 per phase |
 
 Each signal sets a minimum level, and the work item takes the highest of them. Every combination
-maps to exactly one level. Risk only escalates: any risk flag other than `perf-critical` means L3
-at least, plus an accepted ADR per flag. When a track is unavailable, the sw-manager uses the
+maps to exactly one level. Greenfield work lands at L2 at least, so its first OpenSpec change
+seeds the specs that later brownfield changes build on. Risk only escalates: any risk flag other
+than `perf-critical` means L3 at least, plus an accepted ADR per flag. When a track is unavailable, the sw-manager uses the
 documented fallback and says what it gives up. The human can override any choice, and the
 override is recorded.
 
@@ -149,7 +147,7 @@ A project-level `PreToolUse` hook ([`hooks/guard.sh`](.claude/sw-factory/hooks/g
 input's `agent_type`. It blocks:
 
 - `Write`/`Edit` outside the documents that agent owns. Builders cannot touch PRDs, designs, ADRs,
-  OpenSpec/spec-kit specs, the factory config or `.claude/`. The `opsx-*` agents cannot touch the
+  OpenSpec specs, the factory config or `.claude/`. The `opsx-*` agents cannot touch the
   AI-SDLC documents.
 - Spawns outside the consultation graph. Builders and the planner may spawn only `po` and
   `sw-architect`, the architect only `po`, and `po` and `sw-qa` nothing.
@@ -157,11 +155,10 @@ input's `agent_type`. It blocks:
 The plain main session and non-factory agents are not governed. The hook reads paths from
 `.sw-factory/config.yaml`, resolves `..` and symlinks, and needs `jq` or `python3`. Without either
 it allows the call. Shell redirection is not covered, so `sw-qa`'s drift check is the backstop. It
-covers the AI-SDLC documents, `specs/`, `.specify/`, the config and `.claude/`, tracked and
-untracked. A change is legitimate only if the run ledger or the clarification log accounts for it,
-or it only ticks checkboxes. Anything else is `DOC DRIFT` and stops the run. On the opsx tracks,
-`opsx-verifier` reports drift in `openspec/` itself. `tests/guard-test.sh` covers the hook policy
-(51 cases).
+covers the AI-SDLC documents, the config and `.claude/`, tracked and untracked. A change is
+legitimate only if the run ledger or the clarification log accounts for it, or it only ticks
+checkboxes. Anything else is `DOC DRIFT` and stops the run. On the opsx tracks, `opsx-verifier`
+reports drift in `openspec/` itself. `tests/guard-test.sh` covers the hook policy (46 cases).
 
 Why settings rather than agent frontmatter: the docs say frontmatter `hooks:` fire for subagents
 and `--agent` sessions. In Claude Code 2.1.318 they did not fire in either mode. A project
@@ -183,7 +180,6 @@ docs/
     triage.md                             sw-architect
     clarifications.md                     po / sw-architect (one at a time)
     qa-<P<n>|direct>-<round>.md           sw-qa
-    analyze-P<n>.md                       sw-qa (spec-kit analyze)
 ```
 
 Templates for every document are in [`.claude/sw-factory/templates/`](.claude/sw-factory/templates/).
@@ -207,10 +203,6 @@ Templates for every document are in [`.claude/sw-factory/templates/`](.claude/sw
 - **Resume for answers, respawn for retries.** A builder waiting on a human decision is
   mid-task, so it is resumed with `SendMessage` and keeps its context. A QA retry gets a fresh
   builder that re-reads the documents with the findings in hand.
-- **spec-kit artifacts are derived, never authoritative.** In the spec-kit track the po runs
-  `specify`/`clarify` from the PRD, the architect runs `constitution`/`plan` from the HLD/ADRs, the
-  planner runs `tasks`, QA runs `analyze`, and the builder runs `implement`. A requirement change
-  goes to the PRD first.
 - **Documents evolve, they are not one-shot.** When a requirement changes, the po bumps the PRD
   and the sw-architect `evolve`s the design. Superseded ADRs get a new ADR, not an edit. The
   sw-planner replans only the phases not yet started.
@@ -239,7 +231,7 @@ Templates for every document are in [`.claude/sw-factory/templates/`](.claude/sw
     protocols/clarification.md      the builder ↔ po / sw-architect contract
     references/
       track-selection.md            signals → level → track
-      tracks/{direct,subagents,opsx-loop,spec-kit}.md   playbooks
+      tracks/{direct,subagents,opsx-loop}.md   playbooks
     templates/                      prd, stories, hld, lld, adr, plan, ledger, config
 tests/guard-test.sh
 install.sh
