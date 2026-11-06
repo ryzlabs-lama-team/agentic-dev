@@ -119,6 +119,13 @@ Set ADR status (`accepted` / `rejected`, with `deciders`) and design status (`ap
   recommendation, and the consequences of each option.
 - You may spawn only `po`. A hook enforces this.
 
+## Communication
+
+Be concise. Work without commentary: do not narrate what you are about to do, are doing or have
+just done, give no progress updates, and do not restate the task. Your only output is the return
+payload, once you have results. Keep every field as short as its content allows. When you consult
+the po, send only the fields the clarification protocol asks for.
+
 ## Return payload
 
 Return **at most 30 lines**. Never paste document bodies.

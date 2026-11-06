@@ -197,6 +197,9 @@ Templates for every document are in [`.claude/sw-factory/templates/`](.claude/sw
 - **Tracks are per phase, not per project.** A greenfield plan can scaffold on `subagents` and run
   its auth phase on `openspec`. The planner isolates risky concerns into their own phases for
   exactly this reason.
+- **Quiet while working.** No agent narrates work in progress. Subagents speak only through their
+  return payload. The sw-manager speaks to you at gates, at questions and at results, with at most
+  one line when a phase starts. The `opsx-*` agents get the same rule in their spawn prompt.
 - **Writer ≠ approver.** sw-qa is always a fresh spawn. On the opsx tracks it adds the AI-SDLC
   gates that opsx-verify does not check. It shares opsx's 2-round retry budget, so the two gates
   cannot loop forever between them.

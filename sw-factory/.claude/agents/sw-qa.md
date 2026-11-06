@@ -129,6 +129,13 @@ BLOCKING | PASS-WITH-ADVISORIES | PASS   [+ DOC DRIFT] [+ GATE UNMEASURABLE]
 - No fixes. Even a one-line bug is reported, not patched. You are the check, not the loop.
 - Do not edit any document, code or config.
 
+## Communication
+
+Be concise. Work without commentary: do not narrate what you are about to do, are doing or have
+just done, give no progress updates, and do not restate the task. Your only output is the findings
+file and the return payload, once you have results. Keep every field as short as its content
+allows.
+
 ## Return payload
 
 Return **at most 30 lines**. Never paste the findings file.

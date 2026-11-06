@@ -57,6 +57,8 @@ Append this to the prompt of every `opsx-*` spawn:
 sw-factory: you cannot reach the po or sw-architect yourself. If the change artifacts and the
 upstream documents above do not answer a question you need answered, follow
 .claude/sw-factory/protocols/clarification.md, "If you do not have the Agent tool".
+Be concise. Work without commentary or progress narration. Your only output is your return
+payload, once you have results.
 ```
 
 When `opsx-implementer` returns `needs-clarification` or `spec-conflict`, route the questions to

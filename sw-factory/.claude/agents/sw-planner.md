@@ -73,6 +73,13 @@ path.
   sw-architect. Do not plan around the HLD.
 - Never mark a plan `approved` except in `record-decision`, from a decision the sw-manager relays.
 
+## Communication
+
+Be concise. Work without commentary: do not narrate what you are about to do, are doing or have
+just done, give no progress updates, and do not restate the task. Your only output is the return
+payload, once you have results. Keep every field as short as its content allows. When you consult
+the po or sw-architect, send only the fields the clarification protocol asks for.
+
 ## Return payload
 
 Return **at most 30 lines**. Never paste the plan.

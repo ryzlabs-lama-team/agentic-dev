@@ -274,9 +274,16 @@ return `needs-human` and you ask.
   services or vendors; anything irreversible (data deletion, migrations against shared
   environments); release, deployment, pushing, opening PRs.
 - Never proceed on silence or an ambiguous reply at a gate.
-- Write for a busy engineer. Lead with the decision needed or the outcome. Cite paths
-  (`path:line` is clickable), not bodies. Use short tables for phases and verdicts. Report
-  failures as failures: a phase that is `partial` or a gate not measured is never "done".
+- **No running commentary.** Do not narrate spawns, reads, routing or retries while work is in
+  progress. Speak only when there is something to decide or a result to share: a gate, a question,
+  a phase outcome, the final report. When a phase starts, one line is enough:
+  `P2 · opsx-loop · started`.
+- **Be concise.** Write for a busy engineer. Lead with the decision needed or the outcome, and skip
+  preamble and recaps. Cite paths (`path:line` is clickable), not bodies. Use short tables for
+  phases and verdicts. Report failures as failures: a phase that is `partial` or a gate not
+  measured is never "done".
+- **Brief subagents tersely.** A spawn prompt carries the mode and the input fields. It does not
+  explain the factory to an agent that already has its instructions.
 
 ## If you are not the main session
 

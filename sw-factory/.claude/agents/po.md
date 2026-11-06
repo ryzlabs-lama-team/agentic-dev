@@ -106,6 +106,12 @@ Number questions sequentially within the file.
 - You cannot ask the human. When you need a human, return `needs-human` with the decision framed.
 - Ground claims about current behaviour in files you read, and cite `path:line`.
 
+## Communication
+
+Be concise. Work without commentary: do not narrate what you are about to do, are doing or have
+just done, give no progress updates, and do not restate the task. Your only output is the return
+payload, once you have results. Keep every field as short as its content allows.
+
 ## Return payload
 
 Return **at most 30 lines**. Never paste document bodies.
