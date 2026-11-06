@@ -1,0 +1,44 @@
+# sw-factory configuration.
+# install.sh copies this to .sw-factory/config.yaml once and never overwrites it — edit freely.
+# Every sw-factory agent reads this file. Paths are relative to the repository root.
+
+paths:
+  prds: docs/prds                  # po: docs/prds/<slug>/prd.md + stories.md
+  tech_designs: docs/tech-designs  # sw-architect: docs/tech-designs/<system>/hld.md, lld-<topic>.md
+  adrs: docs/adrs                  # sw-architect: docs/adrs/NNNN-<title>.md (the AI-SDLC notes say "docs/ards")
+  plans: docs/plans                # sw-planner: docs/plans/<slug>.md
+  ops_docs: docs/operations        # sw-builder: build, run, test, deploy, configure, monitor
+  runs: .sw-factory/runs           # run state — ledger, triage, clarifications, QA findings (gitignored)
+
+# Implementation gates (AI-SDLC: ">90% code coverage; build passing; 100% tests passing").
+gates:
+  coverage_min: 90                 # percent
+  coverage_scope: changed          # changed = lines changed by the work package | overall = whole repo
+  tests_passing: 100               # percent of tests that must pass; anything else blocks
+  build_passing: true
+
+# Leave a command empty to let sw-builder / sw-qa discover it from the repo (package.json,
+# Makefile, pyproject.toml, *.csproj, go.mod, …) and report what they ran.
+commands:
+  build: ""
+  test: ""
+  coverage: ""
+  lint: ""
+
+# Human gates. Setting one to false lets sw-manager proceed on that gate without stopping;
+# it still reports what it would have asked. Track-internal gates (the opsx-loop spec gate,
+# spec-kit's spec/plan gate) cannot be disabled here.
+human_gates:
+  requirements: true               # PRD agreed with the Product team
+  design: true                     # HLD / LLD / ADRs approved
+  plan: true                       # plan phases and the track per phase approved
+  verification: true               # final human verification before release
+
+tracks:
+  # Tracks sw-manager may select. Remove one to forbid it even when it is installed.
+  enabled: [direct, subagents, opsx-loop, openspec, spec-kit]
+  opsx_archive: ask                # ask | yes | no — archive OpenSpec changes after sync
+
+git:
+  commit: ask                      # ask (decide at the plan gate) | per-phase | never
+  # sw-manager never pushes, never deploys, and never commits on the default branch.

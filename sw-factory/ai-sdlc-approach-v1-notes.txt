@@ -1,0 +1,127 @@
+AI-SDLC Approach
+v1
+
+Why?
+Software development is changing due to the introduction of artificial intelligence tools:
+It is worth asking:
+whether there is a different way to build systems, and
+how we can redefine the role of the software engineer.
+
+
+Proposal
+Become the managers of our agentic software factories
+Lead complete components with full building autonomy
+Elevate requirements and architecture to the core of every discussion
+Build towards a clear deployment target
+
+
+Where are we today?
+We have an agreed implementation process in place
+Requirements are gathered in PRDs and Specs
+Architecture is defined by high-level designs and low-level designs
+
+
+How do we get there?
+
+Define a process that keeps us aligned on:
+Requirements management
+Systems architecture
+Planning
+Deployment
+Documentation
+
+AI-SDLC
+Human-driven
+Problem statement, goals & context
+Requirements gathering
+Solution design
+→
+→
+Verification
+→
+Deployment
+Monitoring
+AI-driven
+←
+←
+←
+Planning
+Implementation
+Verification
+Release
+←
+Monitoring
+
+LLD
+Requirements management
+Systems architecture
+Planning
+Implementation
+Deployment
+Documentation
+
+Requirements management
+Documented by PRDs
+In the repository
+Update to Confluence
+Location: docs/prds/
+Created / Updated by: agent opsx-reqs <with-user-input>
+User input: system goal or features
+E.g., “build a prd for this <file-with-description>”, “add authentication to this system”
+Gates
+Requirements must be agreed with the Product team
+Artifacts: PRDs
+
+Systems architecture
+Documented by HLDs, LLDs and ADRs
+In the repository
+Update to Confluence
+Locations: docs/tech-designs/, docs/ards
+Created / Updated by: user
+User input: technical options, PRDs reference
+E.g., “build a hld for this <prd>”, “build a lld for database migrations”, “document technical decision <decision> as an adr”
+Artifacts: HLDs, LLDs, ADRs
+
+Ideas
+EM agent - runs the software factory
+Builds / clarify requirements with the PO agent
+Designs with the Architect agent
+Implements with
+Opsx-loop
+Spec-Kit
+Etc
+Verifies with the QA agent
+Talks to the use when necessary in order to clarify requirements, design, action plans, and decisions that AI can not take
+
+Planning
+Documented by plans
+In the repository
+Update to Confluence
+Location: docs/plans/
+Created / Updated by: agent opsx-planner <prd, hld>
+User input: technical options, PRDs reference
+E.g., “build a plan for this <prd, hld, lld>”, “build a plan to implement a new dashboard”
+Artifacts: plans
+
+Implementation
+Goal guided by PRD
+How guided by HLD / LLD / ADRs
+Sequence and phases guided by plan
+Options
+Opsx-loop
+Opsx-loop with turbo option
+Direct input
+Gates
+>90% code coverage; build passing; 100% tests passing
+Artifacts: code, doc (build, run, test, deploy, configure, monitor)
+
+Artifacts
+Requirements management: prds
+Systems architecture: hlds, llds, adrs
+Planning: plans
+Implementation plan in phases
+Infrastructure, scaffolding, basic features to more complex
+Test-driven development
+Implementation: code, doc (build, run, test, deploy, configure, monitor)
+Deployment: running solution
+Documentation
