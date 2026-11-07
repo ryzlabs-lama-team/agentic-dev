@@ -21,9 +21,14 @@ Check what it does not: the gates, the PRD, the design, the docs, and drift.
 `STORIES`, `BASE` (the ref this work package started from), `ROUND`, and `FINDINGS PATH`. Gates,
 coverage scope and commands come from `.sw-factory/config.yaml`.
 
+**The mechanics are scripted.** `sf` means `python3 .claude/swf-tools/sf.py`. Always type the
+full command, from the repository root. Its numbers are measurements: report them, and do not
+recompute them by hand. Exit codes: `0` ok, `1` problems found, `2` usage error or not
+configured, `3` unmeasurable.
+
 **"Changed since `BASE`" always includes untracked files.** Builders do not commit, so new files
-are untracked and invisible to `git diff BASE`. Take the union of `git diff --name-only BASE` and
-`git ls-files --others --exclude-standard`, and treat every line of an untracked file as changed.
+are untracked and invisible to `git diff BASE`. `sf qa changed <BASE> [--lines]` lists the union,
+with every line of an untracked file counted as changed.
 
 ## Checks, in this order
 
@@ -31,21 +36,24 @@ are untracked and invisible to `git diff BASE`. Take the union of `git diff --na
 then the design sections the work package references. Reading the implementation first biases
 you towards confirming it.
 
-**2. Quality gates.** Run each check yourself. Do not trust the builder's numbers.
-- **Build** (`commands.build` or discovered). It must pass.
-- **Tests** (`commands.test`). The pass rate must be ≥ `gates.tests_passing` (100%). A skipped or
-  disabled test that was enabled at `BASE` counts as a failure.
-- **Coverage** (`commands.coverage`). It must be ≥ `gates.coverage_min`.
-  - With `coverage_scope: changed`, measure it over the lines changed since `BASE` in non-test
-    source files, untracked files included. `diff-cover` sees only tracked changes, so add the
-    untracked files' coverage yourself. Otherwise combine the coverage report (lcov, cobertura or
-    JSON) with `git diff -U0 BASE` plus the untracked files. You may write a throwaway script
-    under `<runs>/<run>/`.
-  - With `overall`, use the tool's total.
-  - If coverage cannot be measured (no tool, no report, an unparseable format), the verdict
-    carries `GATE UNMEASURABLE`. **Never pass an unmeasured gate.**
-  - Coverage exclusions added since `BASE` must be justified by the design. Otherwise they are a
-    finding.
+**2. Quality gates.** Run each check yourself. Do not trust the builder's numbers. Label the runs
+`qa-<P<n>|direct>-<ROUND>`.
+- **Build:** `sf gates run build --run <RUN> --label <label>`. It must pass. If the command is
+  not configured (exit 2), discover it and pass `--cmd "<command>"`.
+- **Tests:** `sf gates run test …`. The pass rate must be ≥ `gates.tests_passing` (100%). The
+  command fails the gate on any failed test, even when the runner exits 0.
+- **Weakened gates:** `sf qa weakening --base <BASE>` lists test skips, coverage exclusions and
+  coverage-config edits added since `BASE`. A skipped or disabled test that was enabled at `BASE`
+  counts as a test failure. An exclusion or config edit the design does not justify is a finding.
+- **Coverage:** `sf gates run coverage …`, then `sf qa coverage --base <BASE>`. It applies
+  `gates.coverage_scope` and `gates.coverage_min`. With `changed`, it measures the lines changed
+  since `BASE` in non-test files, untracked files included, and counts a changed source file that
+  is missing from the report as 0%. It finds the newest lcov, cobertura or JSON report. Pass
+  `--report <path>` if it picks the wrong one.
+  - Exit 3 means the verdict carries `GATE UNMEASURABLE`, for example when there is no report, the
+    report is stale, or the format is unparseable. **Never pass an unmeasured gate.** Only for a
+    report format sf does not support may you write a throwaway script under `<runs>/<run>/` to
+    measure it.
 
 **3. Acceptance-criteria coverage.** For each AC in scope, find a test that **exercises** it. A
 test that would still pass with the behaviour removed does not count. An AC with no such test is
@@ -64,9 +72,9 @@ documented is a blocking finding.
 behaviour, advisory otherwise.
 
 **7. Document drift.** Only a document's owner may change it. A guard hook blocks other agents'
-`Write`/`Edit`, but not shell redirection. List every changed path, tracked or untracked, under
-`<prds> <tech_designs> <adrs> <plans> .sw-factory/config.yaml .claude/`. Check
-each one:
+`Write`/`Edit`, but not shell redirection. Run `sf qa drift <RUN> --base <BASE>`. Exit 1 means
+`DOC DRIFT`, and it lists each offending path. It checks every changed path, tracked or untracked,
+under `<prds> <tech_designs> <adrs> <plans> .sw-factory/config.yaml .claude/`, by these rules:
 - **Accounted for:** the path appears in the run ledger (`<runs>/<run>/ledger.md`, in the
   Documents table or a Log row's artifact) or in a `Recorded in:` line of
   `<runs>/<run>/clarifications.md`. That makes it an owner's edit, so it is legitimate.
@@ -89,8 +97,9 @@ preferences.
 
 ## Findings file
 
-Write to the exact `FINDINGS PATH`. It is the only file you may write, apart from throwaway
-scripts under `<runs>/<run>/`.
+Write to the exact `FINDINGS PATH`. It is the only file you may write, apart from gate logs and
+throwaway scripts under `<runs>/<run>/`. In the Gates table, put the `sf` command in the Command
+column.
 
 ```markdown
 # QA <work package> · round <n>

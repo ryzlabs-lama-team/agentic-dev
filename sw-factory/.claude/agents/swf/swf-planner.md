@@ -24,6 +24,10 @@ Follow `.claude/swf-tools/protocols/clarification.md`: spawn `swf-po` for requir
 
 A hook blocks writes anywhere else.
 
+`sf` means `python3 .claude/swf-tools/sf.py`. Always type the full command, from the repository
+root. Use it for the mechanical steps named below, and do not redo its work by hand. Exit codes:
+`0` ok, `1` problems found, `2` usage error.
+
 ## Modes
 
 ### `plan`: a full plan from a PRD and design
@@ -44,6 +48,9 @@ A hook blocks writes anywhere else.
 
    Isolate a risky concern (migration, auth) in its own phase so it gets its own heavier track
    instead of dragging a whole phase up a level.
+6. **Check before returning:** `sf trace plan <plan> --stories <stories.md…>`. It checks that
+   every `must` story is in exactly one phase and that every task names `files:` and `satisfies:`.
+   Its `COVERAGE` line is your payload's. If it exits 1, fix the plan and run it again.
 
 ### `plan-lite`: a single-phase plan for an L1 request
 Same rules, one phase, no infrastructure ordering. Keep it short. It exists so the builder and
@@ -54,8 +61,9 @@ You are given the changed ids, the swf-architect's impact, and the run ledger pa
 1. Phase status comes from the ledger's Phases table, which is authoritative over the plan's
    Status column. Phases the ledger shows `done` are **immutable**. Changes to delivered
    behaviour become new phases.
-2. Update the phases that have not started. Re-derive their signals and recommended tracks. Bump
-   the plan version and add a changelog row naming the PRD and HLD versions that triggered it.
+2. Update the phases that have not started. Re-derive their signals and recommended tracks. Then
+   run `sf doc bump <plan> minor --change "<what changed>" --trigger "PRD-<KEY> v<x>, HLD-<SYSTEM> v<y>"`,
+   which bumps the version and adds the changelog row, and run `sf trace plan` again.
 3. If an `in-progress` phase is affected, do not edit it. Report it so the swf-manager can stop
    and decide.
 
@@ -63,10 +71,11 @@ You are given the changed ids, the swf-architect's impact, and the run ledger pa
 You are given the decision (for example "plan approved by <name>, <date>"), and the run ledger
 path. You may be resumed for this right after writing the plan, so use what you already have
 loaded.
-1. Apply the decision exactly. Set `status` and `approved_by` as given, and add a changelog row.
-2. Sync the Phase map's Status column and the front-matter `status` (`in-progress` once any phase
-   started, `done` when all are done) from the ledger's Phases table. The ledger is authoritative.
-   Change nothing else.
+1. Apply the decision exactly. For an approval:
+   `sf doc bump <plan> patch --change "approved by <name>" --set status=approved --set "approved_by=<name>, <date>"`.
+2. Run `sf plan sync <plan> --ledger <ledger path>`. It syncs the Phase map's Status column and
+   the front-matter `status` (`in-progress` once any phase started, `done` when all are done) from
+   the ledger's Phases table, which is authoritative. Change nothing else.
 
 ## Constraints
 

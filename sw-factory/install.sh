@@ -89,7 +89,8 @@ for i in "${!PLAN_REL[@]}"; do
   echo "  $class  $rel"
   [ "$HAVE_SHA" -eq 0 ] || MANIFEST_BODY+="$(sha256_of "$SRC/$rel")  $rel"$'\n'
 done
-chmod +x "$DEST/.claude/swf-tools/preflight.sh" "$DEST/.claude/swf-tools/hooks/guard.sh" "$DEST/.claude/swf-tools/usage.py"
+chmod +x "$DEST/.claude/swf-tools/preflight.sh" "$DEST/.claude/swf-tools/hooks/guard.sh" \
+  "$DEST/.claude/swf-tools/usage.py" "$DEST/.claude/swf-tools/sf.py"
 if [ "$HAVE_SHA" -eq 1 ]; then printf '%s' "$MANIFEST_BODY" > "$MANIFEST"
 else echo 'warning: no SHA-256 utility found; manifest not written and differing files are treated as customized' >&2; fi
 
@@ -136,12 +137,38 @@ wire_hook() { # wire_hook <event> <marker> <entry> <label>: add <entry> unless <
 }
 # Hooks wired by earlier installs point at .claude/sw-factory/; repoint them at .claude/swf-tools/.
 for s in "$SETTINGS" "$DEST/.claude/settings.local.json"; do
-  if grep -qs '\.claude/sw-factory/\(hooks/guard\.sh\|usage\.py\)' "$s"; then
+  if grep -qs '\.claude/sw-factory/\(hooks/guard\.sh\|usage\.py\|sf\.py\)' "$s"; then
     sed -e 's#\.claude/sw-factory/hooks/guard\.sh#.claude/swf-tools/hooks/guard.sh#g' \
-        -e 's#\.claude/sw-factory/usage\.py#.claude/swf-tools/usage.py#g' "$s" > "$s.sw-factory.tmp" \
+        -e 's#\.claude/sw-factory/usage\.py#.claude/swf-tools/usage.py#g' \
+        -e 's#\.claude/sw-factory/sf\.py#.claude/swf-tools/sf.py#g' "$s" > "$s.sw-factory.tmp" \
       && mv "$s.sw-factory.tmp" "$s" && echo "  updated  ${s#"$DEST"/} (hooks moved to .claude/swf-tools/)"
   fi
 done
+
+# Agents run the bookkeeping CLI constantly; allow it so they never stop at a permission prompt.
+SF_ALLOW='Bash(python3 .claude/swf-tools/sf.py:*)'
+merge_allow() { # merge_allow <rule> <in> <out>: append <rule> to permissions.allow
+  if command -v jq >/dev/null 2>&1; then
+    jq --arg r "$1" '.permissions.allow = ((.permissions.allow // []) + [$r])' "$2" > "$3"
+  elif command -v python3 >/dev/null 2>&1; then
+    python3 -I -c 'import json, sys
+s = json.load(open(sys.argv[1]))
+s.setdefault("permissions", {}).setdefault("allow", []).append(sys.argv[3])
+json.dump(s, open(sys.argv[2], "w"), indent=2); open(sys.argv[2], "a").write("\n")' "$2" "$3" "$1"
+  else return 1; fi
+}
+if [ ! -e "$SETTINGS" ]; then
+  printf '{\n  "permissions": {\n    "allow": [\n      "%s"\n    ]\n  }\n}\n' "$SF_ALLOW" > "$SETTINGS"
+  echo "  new  .claude/settings.json (sf.py permission)"
+elif grep -qF "$SF_ALLOW" "$SETTINGS"; then
+  echo "  kept  .claude/settings.json (sf.py permission already allowed)"
+elif merge_allow "$SF_ALLOW" "$SETTINGS" "$SETTINGS.sw-factory.tmp" 2>/dev/null; then
+  mv "$SETTINGS.sw-factory.tmp" "$SETTINGS"; echo "  merged  .claude/settings.json += permission $SF_ALLOW"
+else
+  rm -f "$SETTINGS.sw-factory.tmp"
+  echo "warning: could not add \"$SF_ALLOW\" to permissions.allow in .claude/settings.json; add it yourself." >&2
+fi
+
 wire_hook PreToolUse 'swf-tools/hooks/guard.sh' \
   "$(hook_entry 'bash "${CLAUDE_PROJECT_DIR}/.claude/swf-tools/hooks/guard.sh"' 'Write|Edit|NotebookEdit|Agent|Task')" guard
 wire_hook SessionEnd 'swf-tools/usage.py' \

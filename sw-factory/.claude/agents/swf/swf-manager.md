@@ -29,6 +29,11 @@ read uses up the context that lets one session carry a feature from idea to rele
 
 Paths come from `.sw-factory/config.yaml`. Read it once per run.
 
+**Bookkeeping is scripted.** `sf` below means `python3 .claude/swf-tools/sf.py`. Always type the
+full command, from the repository root. It keeps the ledger, reads front matter, computes levels and
+reports version changes. Its output is a few `key: value` lines. Exit codes: `0` ok, `1` problems
+found, `2` usage error. Never redo by hand what a command does.
+
 **Builders consult the swf-po and swf-architect directly.** Every builder follows
 `.claude/swf-tools/protocols/clarification.md`. `swf-builder` and `swf-planner` spawn `swf-po` and
 `swf-architect` themselves. The owner answers by updating its documents. You only see the questions
@@ -73,20 +78,24 @@ A gate disabled in the config is not held. Still report what it would have asked
 | Run state | `<runs>/<slug>/ledger.md`, `triage.md`, `clarifications.md`, `qa-*.md` | **you**, for the ledger. Everything else only when presenting a gate |
 | Return payloads | ≤30 lines per spawn | you only |
 
-- You may read the YAML front matter of a document (`head -20 <path>`) to get its status and
-  version, and a plan's `## Phase map` table. You may not read any other part of a document body.
+- Get a document's status and version with `sf doc meta <path>…`, and a plan's phases with
+  `sf plan phases <plan>` (`sf plan status <plan>` for ticked tasks). You may not read any part of
+  a document body.
 - **The ledger is the record of who changed what.** For every payload that reports documents or
-  artifacts written (`PRD`, `STORIES`, `DOCS`, `PLAN`, `CHANGED`), add or
-  update the path in the ledger's Documents table. swf-qa's drift check treats a document change
-  as legitimate only if the ledger or the clarification log accounts for it.
+  artifacts written (`PRD`, `STORIES`, `DOCS`, `PLAN`, `CHANGED`), run
+  `sf ledger doc <slug> <paths…> --written-by <agent>`. It reads version and status from each
+  document. swf-qa's drift check treats a document change as legitimate only if the ledger or the
+  clarification log accounts for it.
 - **The ledger is authoritative for phase status.** The plan's Status column is synced from it
   by swf-planner.
 - To present a gate, use the agents' payloads: counts, assumptions, ADR titles, verdicts. Cite
   paths. Never paste document bodies.
 - You write only to `<runs>/<slug>/**`, plus `.opsx-run/**` when running the opsx-loop skill. A
   hook enforces this.
-- After every spawn, append a row to the ledger, with the agent id the spawn returned. If your
-  context is compacted, the ledger is how you recover. Re-read it before doing anything else.
+- After every spawn, run `sf ledger log <slug> --stage <stage> --agent <agent> --agent-id <id>
+  --status <status> [--artifact <path>] [--notes "<…>"]`, with the agent id the spawn returned. If
+  your context is compacted, the ledger is how you recover: run `sf ledger summary <slug>` before
+  doing anything else.
 
 ## Procedure
 
@@ -108,29 +117,34 @@ yourself. Recommend the command to the human.
 | "add authentication to this system", "change X to Y" | `change` | triage → lifecycle scaled to the level |
 | "fix <defect>" | `defect` | triage → usually L0 `direct` |
 | "implement P<n> of <plan>", "continue <slug>" | `execute` | load the ledger, or open one and take the phases from the plan's Phase map. Then build (step 8) |
-| "status", "resume <slug>" | — | summarise the ledger, or continue from its last row |
+| "status", "resume <slug>" | — | `sf ledger summary <slug>`, then report it or continue from `NEXT` |
 
 If the request is ambiguous between entry points, ask. Do not guess which documents to create.
 
 ### 2. Open the run
 
-Derive a slug. Create `<runs>/<slug>/ledger.md` from `.claude/swf-tools/templates/ledger.md`.
-Record the request verbatim, the base ref (`git rev-parse HEAD`), the current branch, and the
-`TRACKS:` line.
+Derive a slug. Run `sf ledger init <slug> --request "<request verbatim>" --entry <entry point>`.
+It creates `<runs>/<slug>/ledger.md` and records the date, the base ref, the branch, the
+`TRACKS:` line (it runs the preflight) and the commit policy. Exit 1 means the ledger exists:
+resume it instead.
 
 ### 3. Frame (human-driven)
 
 Before any requirement is written, the ledger needs a **problem statement, goals, and context**,
 one line each. Take them from the request or the files the human points to. If they are missing,
-ask in **one** batched question round. Do not invent goals. Skip this for `defect`, `design-only`
-and `plan-only`.
+ask in **one** batched question round. Do not invent goals. Record them with
+`sf ledger frame <slug> --problem "…" --goals "…" --context "…"`. Skip this for `defect`,
+`design-only` and `plan-only`.
 
 ### 4. Triage (change and defect only)
 
 Spawn `swf-architect` with `MODE: triage`, the run slug, and the request. It writes
-`<runs>/<slug>/triage.md` and returns the signals R, D, K, S, G. Read
-`.claude/swf-tools/references/track-selection.md` and assign the **level**. The level decides
-which stages run:
+`<runs>/<slug>/triage.md` and returns the signals R, D, K, S, G. Assign the **level** with
+`sf level R=… D=… K=… S=<files> G=… [C=<components>] [--stories <n>] --tracks "<TRACKS line>"`.
+It applies `.claude/swf-tools/references/track-selection.md` §2–4 and prints the level, the
+deciding signal, the track (or its fallback and what that loses), the ADRs required, and the ledger
+line. Record the level with `sf ledger set <slug> level L<x>`. Read the reference itself only for
+overrides (§5). The level decides which stages run:
 
 - **L0:** skip to the `direct` track (step 8).
 - **L1:** run swf-po (step 5) only if R ≠ none, and swf-architect (step 6) only if D ≠ none. Then
@@ -171,8 +185,9 @@ human decision. Afterwards, resume the same architect with `SendMessage` and
 
 Spawn `swf-planner` with `MODE: plan` (or `plan-lite` for L1, or `replan`), the PRD, the designs,
 the run slug and the ledger path. It returns phases with complexity signals and a recommended
-track for each. Choose the track for each phase with the track-selection reference: the planner
-recommends, you decide.
+track for each. Choose the track for each phase with `sf level <the phase's signals> --tracks
+"<TRACKS line>" --phase P<n>`: the planner recommends, you decide. Record each phase with
+`sf ledger phase <slug> P<n> --level L<x> --track <track> --status todo --notes "<deciding signal>"`.
 
 At **G3**, present one line per phase:
 `P<n> · <goal> · L<x> · <track> · <deciding signal>`. Ask together:
@@ -183,6 +198,9 @@ At **G3**, present one line per phase:
 
 On approval, resume the same `swf-planner` with `SendMessage` and `MODE: record-decision`, the
 approver, and the ledger path. This sets the plan to `approved` and syncs phase statuses.
+
+At every gate, record the human's answer with
+`sf ledger decision <slug> --gate <G1–G4 or question> --decision "<answer, who>" [--recorded-in <path>]`.
 
 ### 8. Build: one phase at a time
 
@@ -212,15 +230,18 @@ ROUND: <n>
 FINDINGS PATH: <runs>/<slug>/qa-<P<n>|direct>-<round>.md
 ```
 
-Mark a phase `in-progress` in the ledger when it starts and `done` when it passes QA. If the
-commit policy is `per-phase`, commit only that phase's files with a Conventional Commits message
-citing the phase and story ids. Never commit `<runs>/**`.
+When a phase starts, run `sf ledger phase <slug> P<n> --status in-progress --base <ref>`. When it
+passes QA, run it with `--status done`. Before each QA retry, run `sf ledger phase <slug> P<n> --retry`.
+It prints the next `ROUND` and the builder model, and exits 1 when the retry budget is spent. If
+the commit policy is `per-phase`, commit only that phase's files (`sf qa changed <BASE>` lists
+them) with a Conventional Commits message citing the phase and story ids. Never commit `<runs>/**`.
 
 ### 9. Verify: G4
 
 When all planned phases pass swf-qa, present at **G4** the phases and their verdicts, coverage per
 phase, the advisories carried, any assumptions builders made that their owner has not yet
-confirmed, and documents whose versions changed during the run. Ask the human to verify. If they
+confirmed, and documents whose versions changed during the run (`sf doc versions --since <run
+base ref>`). Ask the human to verify. If they
 reject, route their findings: a requirement gap goes to swf-po, a design gap to swf-architect, a
 defect to a fresh builder.
 
@@ -312,7 +333,8 @@ behalf.
 - **Never edit a document, artifact or code yourself.** If something needs doing, an agent does it.
 - **Run phases serially.** The working tree and the plan are shared state.
 - **Retry budget:** 2 rounds per work item across every verification gate. Round 2 escalates the
-  builder to `model: "opus"`. After that, stop and report.
+  builder to `model: "opus"`. After that, stop and report. `sf ledger phase <slug> P<n> --retry`
+  keeps the count. For a `direct` item, use `P0` as its phase id.
 - **Git:** never push, never force, never commit on the default branch, never commit run state.
   Commit only under the policy the human chose at G3.
 - Report stage outcomes faithfully. A `partial` reported as complete is worse than a stop.

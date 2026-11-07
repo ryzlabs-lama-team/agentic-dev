@@ -31,6 +31,11 @@ Paths come from `.sw-factory/config.yaml` (`paths.tech_designs`, `paths.adrs`, `
 
 A hook blocks writes anywhere else.
 
+`sf` means `python3 .claude/swf-tools/sf.py`. Always type the full command, from the repository
+root. Use it for ADR numbers, versions, changelog rows, front matter, the clarification log and the
+traceability check. Do not do these by hand. Exit codes: `0` ok, `1` problems found, `2` usage
+error.
+
 ## Modes
 
 ### `triage`: classify a change so swf-manager can choose a track
@@ -57,8 +62,10 @@ A hook blocks writes anywhere else.
 1. Read the PRD and stories in full, the existing designs and ADRs, and the code.
 2. Write the HLD from the template. Every FR and NFR in the PRD must appear in the traceability
    table, or be explicitly marked out of this design's scope. **Name the deployment target.**
-   The AI-SDLC builds towards one.
-3. Each significant decision gets an ADR with `status: proposed`. A decision is significant if it
+   The AI-SDLC builds towards one. Check with `sf trace hld <hld> --prd <prd>`. Exit 1 lists the
+   untraced or unknown ids.
+3. Each significant decision gets an ADR with `status: proposed`, numbered by
+   `sf id next adr`. A decision is significant if it
    is hard to reverse, crosses components, or picks a technology. Compare at least two options in
    each ADR and recommend one.
 4. Add an LLD only for parts a builder could not implement from the HLD without inventing
@@ -76,8 +83,9 @@ human accepts or rejects it, through the swf-manager.
 You are given the PRD path and the changed ids (from swf-po's `update`).
 1. Find every design section, LLD and ADR that traces to a changed id. Use `git diff` on the PRD
    where history helps.
-2. Update them, bump the versions, and add changelog rows naming the PRD version that triggered
-   the change.
+2. Update them. For each document, run
+   `sf doc bump <path> minor|patch --change "<…>" --trigger "PRD-<KEY> v<x>"`, then run
+   `sf trace hld` again.
 3. A decision that no longer holds gets a **new ADR that supersedes it**. Never edit an accepted
    ADR's decision in place.
 4. Return the impact as new D and K signals, so the swf-planner can replan and the swf-manager can
@@ -88,18 +96,21 @@ For each question:
 1. Answer from the HLD, LLDs, ADRs and the code. Prefer the answer most consistent with existing
    patterns in the codebase.
 2. **Within the approved design** (it fills a gap without changing an interface, data model or
-   decision): record it in the right LLD or HLD section. Make a patch version bump. Return the
+   decision): record it in the right LLD or HLD section, then run
+   `sf doc bump <path> patch --change "<…>" --trigger "clarification <run>/Q<n>"`. Return the
    path#section.
 3. **It changes an approved interface, data model or decision,** or adds a risk: write a
    `proposed` ADR and return `needs-human`. The builder must not proceed on an unaccepted decision.
 4. **It is really a requirement question:** ask the swf-po yourself (spawn `swf-po`, `MODE: clarify`) and
    design to its answer. If the swf-po returns `needs-human`, pass that up.
-5. Append each question and answer to the clarification log.
+5. Append each question and answer to the clarification log with
+   `sf clar add <run> --asked-by <agent> --wp <work package> --owner swf-architect --q "<…>" --a "<…>" --recorded-in "<path#section> (v<version>) | not recorded: <why> | needs-human"`.
 
 ### `record-decision`: write a human decision into the documents
-You may be resumed for this right after writing the design, so use what you already have loaded.
-Set ADR status (`accepted` / `rejected`, with `deciders`) and design status (`approved`,
-`approved_by`) exactly as relayed by the swf-manager. Only do this in this mode.
+Apply the decision exactly as relayed by the swf-manager, and only in this mode:
+`sf doc set <adr> status=accepted|rejected "deciders=<names>, <date>"` for each ADR, and
+`sf doc bump <design> patch --change "approved by <name>" --set status=approved --set "approved_by=<name>, <date>"`
+for each design document.
 
 ## Design principles
 

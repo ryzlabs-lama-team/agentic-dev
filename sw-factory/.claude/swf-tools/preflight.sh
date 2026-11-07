@@ -29,10 +29,17 @@ if grep -qs 'swf-tools/hooks/guard.sh' .claude/settings.json .claude/settings.lo
 else
   warn "ownership guard not wired in .claude/settings.json — rerun install.sh; until then only swf-qa's drift check applies"
 fi
-if command -v jq >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1; then
-  ok "hook JSON parser available (jq or python3)"
+if ! command -v python3 >/dev/null 2>&1; then
+  bad "python3 not on PATH — the agents' bookkeeping CLI (sf.py) needs it"
+elif v="$(python3 .claude/swf-tools/sf.py --version 2>&1)"; then
+  ok "bookkeeping CLI runs ($v)"
 else
-  warn "neither jq nor python3 on PATH — the ownership guard allows everything; swf-qa drift check still applies"
+  bad ".claude/swf-tools/sf.py does not run: $v"
+fi
+if grep -qsF 'Bash(python3 .claude/swf-tools/sf.py:*)' .claude/settings.json .claude/settings.local.json; then
+  ok "sf.py allowed in permissions"
+else
+  warn "sf.py not in permissions.allow — agents will stop at permission prompts; rerun install.sh"
 fi
 
 cfg_path() {

@@ -28,6 +28,11 @@ Paths come from `.sw-factory/config.yaml` (`paths.prds`, `paths.runs`).
 
 A hook blocks writes anywhere else.
 
+`sf` means `python3 .claude/swf-tools/sf.py`. Always type the full command, from the repository
+root. Use it for ids, versions, changelog and decision-log rows, front matter, the clarification
+log and the traceability check. Do not do these by hand. Exit codes: `0` ok, `1` problems found,
+`2` usage error.
+
 ## Modes
 
 You are spawned with a `MODE`. Do only that mode's job.
@@ -41,20 +46,27 @@ You are spawned with a `MODE`. Do only that mode's job.
    has Given/When/Then acceptance criteria and links to FR/NFR ids.
 4. Every gap in the input becomes an **open question with a default assumption**, never a silent
    guess and never a blocker. Status `draft`, version `0.1.0`.
-5. Pick the **human questions**: the open questions (at most 3) whose answer would most change
+5. Run `sf trace prd <prds>/<slug>`. It checks unique ids, an AC and a valid FR/NFR link on every
+   story, and that the story table matches the sections. If it exits 1, fix the documents and run
+   it again.
+6. Pick the **human questions**: the open questions (at most 3) whose answer would most change
    the requirements, stories or scope. Return each so the swf-manager can ask it as written: the
    question, 2–4 options with your default first, and the impact. The human answers them at G1.
    Leave the rest as open questions with their defaults.
 
 ### `update`: requirements change (a new feature, a changed need, a human decision)
 1. Read the current PRD and stories in full.
-2. Apply the change. **Never renumber ids.** Retire a requirement by marking it
-   `~~FR-007~~ (removed in v1.3: <reason>)` so references in designs, plans and code stay
+2. Apply the change. **Never renumber ids.** New ids come from `sf id next fr|nfr --doc <prd>`
+   and `sf id next us --doc <stories>`. Retire a requirement by marking it
+   `- ~~FR-007~~ (removed in v1.3: <reason>)` so references in designs, plans and code stay
    resolvable.
-3. Bump the version: minor if requirements were added, changed or removed, patch for
-   clarifications or wording only. Add a changelog row. If the PRD was `agreed` and the change is
-   minor or larger, set the status back to `in-review`. Agreement must be renewed at the gate.
-4. List the changed ids in your payload. The swf-architect uses them for `evolve`, and the
+3. Bump the version with `sf doc bump <prd> minor|patch --change "<…>" --trigger "<run or request>"`:
+   minor if requirements were added, changed or removed, patch for clarifications or wording only.
+   It adds the changelog row. If the PRD was `agreed` and the change is minor or larger, add
+   `--set status=in-review`. Agreement must be renewed at the gate.
+4. Run `sf trace prd <prds>/<slug> --base HEAD`. Exit 1 lists broken links, and any id that
+   vanished without a strike-through. Fix them before returning.
+5. List the changed ids in your payload. The swf-architect uses them for `evolve`, and the
    swf-planner for `replan`.
 5. If the change opened new questions, pick the human questions as in `create` step 5.
 
@@ -63,26 +75,29 @@ For each question:
 1. Answer from the PRD, the stories, and the problem statement and goals. Choose the answer that
    best serves the stated goals and is most consistent with the agreed scope.
 2. **The answer refines agreed scope:** it resolves an ambiguity without changing what was agreed.
-   Record it in the document: add or sharpen an acceptance criterion, or add a story note. Make a
-   patch version bump and a decision-log row with source `clarification <run>/Q<n>`. Return the
+   Record it in the document: add or sharpen an acceptance criterion, or add a story note. Then
+   run `sf doc bump <prd> patch --change "<…>" --trigger "clarification <run>/Q<n>"` and
+   `sf doc decide <prd> --decision "<…>" --by swf-po --source "clarification <run>/Q<n>"`. Return the
    path#section.
 3. **The answer would change agreed scope or behaviour,** or needs a product decision the
    documents and goals cannot settle: do **not** decide it. Return `needs-human` with the
    decision framed as options, your recommendation, and the impact of each option.
 4. **The question is about *how*:** return it as `misrouted → swf-architect`. Do not answer design
    questions.
-5. Append each question and answer to the clarification log.
+5. Append each question and answer to the clarification log (see below).
 
 ### `record-decision`: write a human decision into the documents
 You are given the decision and who made it. You may be resumed for this right after writing the
-PRD, so use what you already have loaded. Apply it exactly. For agreement at G1, set
-`status: agreed` and `agreed_by: <name(s)>, <date>`. For other decisions, add a decision-log row.
+PRD, so use what you already have loaded. Apply it exactly. For agreement at G1, run
+`sf doc set <prd> status=agreed "agreed_by=<name(s)>, <date>"`. For other decisions, run
+`sf doc decide <prd> --decision "<…>" --by "<name>" --source "human gate"`.
 For an answer to an open question: apply it to the requirements, acceptance criteria or scope it
 affects, mark the question answered in §10
-(`- **Q-01** — <question> — **Answered:** <answer> (<who>, <date>)`), and add a decision-log row
-with source `human gate G1`. Apply answers before agreement: the agreement covers the PRD with the
-answers in it. Bump the version if requirements changed. Set `agreed` **only** in this mode, and
-only from a decision the swf-manager relays. You cannot agree a PRD on the Product team's behalf.
+(`- **Q-01** — <question> — **Answered:** <answer> (<who>, <date>)`), and run
+`sf doc decide <prd> --decision "<…>" --by "<who>" --source "human gate G1"`. Apply answers before
+agreement: the agreement covers the PRD with the answers in it. Bump the version with `sf doc bump`
+if requirements changed. Set `agreed` **only** in this mode, and only from a decision the
+swf-manager relays. You cannot agree a PRD on the Product team's behalf.
 
 ## Writing requirements that survive the pipeline
 
@@ -98,16 +113,15 @@ only from a decision the swf-manager relays. You cannot agree a PRD on the Produ
 
 ## Clarification log entry
 
-Append to `<runs>/<run>/clarifications.md`, creating it if absent:
+For each question, run:
 
-```markdown
-## Q<n> · <YYYY-MM-DD> · asked by <agent> (<work package>) · owner: swf-po
-**Q:** <question>
-**A:** <answer, one paragraph>
-**Recorded in:** <path#section> (v<version>) | not recorded: <why> | needs-human
+```
+sf clar add <run> --asked-by <agent> --wp <work package> --owner swf-po --q "<question>" \
+  --a "<answer, one paragraph>" --recorded-in "<path#section> (v<version>) | not recorded: <why> | needs-human"
 ```
 
-Number questions sequentially within the file.
+It numbers and dates the entry in `<runs>/<run>/clarifications.md`. swf-qa's drift check accepts a
+document change only if a `Recorded in:` line or the ledger names its path.
 
 ## Constraints
 

@@ -168,6 +168,44 @@ Why settings rather than agent frontmatter: the docs say frontmatter `hooks:` fi
 and `--agent` sessions. In Claude Code 2.1.318 they did not fire in either mode. A project
 `settings.json` hook did, and `agent_type` was present for both subagents and `--agent` sessions.
 
+## Scripted bookkeeping
+
+Work with exactly one right answer is not left to a model. The agents run
+[`sf.py`](.claude/swf-tools/sf.py), a stdlib-only Python CLI, through Bash. It handles ticking
+tasks, keeping the ledger, bumping versions, numbering ids, checking traceability, measuring
+changed-lines coverage and checking drift. Each agent's prompt names the commands it uses. A
+command prints a few `key: value` lines for the agent's payload, never a document body, and its
+exit code tells the agent what to do next:
+
+| Exit | Meaning |
+|---|---|
+| `0` | ok |
+| `1` | the check found problems: drift, trace gaps, budget exhausted, a failing gate |
+| `2` | usage or input error, or a gate command not configured |
+| `3` | unmeasurable: coverage could not be measured (`GATE UNMEASURABLE`) |
+
+| Command | Does | Used by |
+|---|---|---|
+| `plan status · tick · phases · sync` | ticked/total per phase; tick only the named tasks; the Phase map in one line per phase; sync plan statuses from the ledger | builder, manager, planner |
+| `ledger init · set · frame · log · doc · phase · decision · summary` | the run ledger: header from git + preflight, numbered Log rows, Documents rows from front matter, phase rows with the retry budget (`--retry`), a ≤ 15-line summary for resume | manager |
+| `doc meta · set · bump · decide · versions` | front-matter read/write that keeps comments; version bump + changelog row; decision-log row; versions changed since a ref | all owners, manager |
+| `id next adr · fr · nfr · us · q` | next free number, never reusing a retired id | swf-po, architect |
+| `clar add · count` | numbered, dated clarification entries; the 5-question budget | swf-po, architect, builder |
+| `trace prd · hld · plan` | unique ids, AC and FR links, no renumbering since a ref; every FR/NFR traced in the HLD; every must story in exactly one phase | swf-po, architect, planner |
+| `qa changed · coverage · drift · weakening` | changed files incl. untracked; changed-lines coverage from lcov / cobertura / coverage.py JSON / istanbul; the drift rules; added skips and coverage exclusions | swf-qa |
+| `level R=… D=… K=… S=… G=…` | level, track, fallback and required ADRs from the track-selection table | manager |
+| `gates run build · test · coverage · lint · all` | runs `commands.*`, logs to `<runs>/<slug>/logs/`, prints one line per gate with parsed test counts | builder, swf-qa |
+
+```sh
+python3 .claude/swf-tools/sf.py --help              # and <group> --help, <group> <command> --help
+```
+
+`install.sh` adds `Bash(python3 .claude/swf-tools/sf.py:*)` to `permissions.allow`, so agents
+never stop at a prompt. python3 is required, and the preflight fails without it. Ownership is
+unchanged: each agent runs `sf.py` only on the documents it owns. Bash writes bypass the guard
+hook, so swf-qa's drift check (itself `sf.py qa drift`) is still the backstop.
+`tests/sf-test.sh` covers every command (154 cases).
+
 ## Measuring consumption
 
 [`usage.py`](.claude/swf-tools/usage.py) reports what a run consumed: tokens, cost, API calls and
@@ -233,6 +271,7 @@ docs/
     triage.md                             swf-architect
     clarifications.md                     swf-po / swf-architect (one at a time)
     qa-<P<n>|direct>-<round>.md           swf-qa
+    logs/<label>-<gate>.log               full gate output (sf.py gates run)
     .usage/<session>.json                 usage snapshots (SessionEnd hook; no agent reads them)
 ```
 
@@ -292,6 +331,7 @@ Templates for every document are in [`.claude/swf-tools/templates/`](.claude/swf
     swf-manager.md   swf-po.md   swf-architect.md   swf-planner.md   swf-builder.md   swf-qa.md
   swf-tools/
     preflight.sh                    factory checks + TRACKS line
+    sf.py                           bookkeeping CLI the agents run (ledger, plan, docs, QA, level, gates)
     usage.py                        token and cost report (for the human; agents never read it)
     hooks/guard.sh                  document ownership + spawn allowlist
     protocols/clarification.md      the builder ↔ swf-po / swf-architect contract
@@ -299,6 +339,6 @@ Templates for every document are in [`.claude/swf-tools/templates/`](.claude/swf
       track-selection.md            signals → level → track
       tracks/{direct,subagents,opsx-loop}.md   playbooks
     templates/                      prd, stories, hld, lld, adr, plan, ledger, config
-tests/guard-test.sh   tests/usage-test.sh
+tests/guard-test.sh   tests/usage-test.sh   tests/sf-test.sh
 install.sh
 ```

@@ -2,6 +2,7 @@
 Request: <verbatim from the human>
 Started: <YYYY-MM-DD>
 Base ref: <git rev-parse HEAD at run start, or "no git">
+Branch: <git branch at run start>
 Entry point: <idea | change | defect | prd-only | design-only | plan-only | execute>
 Level: <L0–L3, once triaged>
 Tracks available: <from preflight TRACKS line>
@@ -21,8 +22,9 @@ treats unlisted changes as drift.
 
 ## Phases
 Authoritative for phase status. swf-planner syncs the plan's Status column from this table.
+Retries counts QA retry rounds spent (budget 2); `sf.py ledger phase --retry` maintains it.
 
-| Phase | Level | Track | Status | Base ref | QA rounds | Notes |
+| Phase | Level | Track | Status | Base ref | Retries | Notes |
 |---|---|---|---|---|---|---|
 
 ## Log
