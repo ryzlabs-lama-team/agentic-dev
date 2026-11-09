@@ -204,7 +204,10 @@ python3 .claude/swf-tools/sf.py --help              # and <group> --help, <group
 never stop at a prompt. python3 is required, and the preflight fails without it. Ownership is
 unchanged: each agent runs `sf.py` only on the documents it owns. Bash writes bypass the guard
 hook, so swf-qa's drift check (itself `sf.py qa drift`) is still the backstop.
-`tests/sf-test.sh` covers every command (154 cases).
+`tests/sf-test.sh` covers every command (155 cases). It also lints the prompts: every `sf`
+command written in an agent, protocol, reference or this README must name a real command and
+only options it accepts. Each prompt carries only the commands its agent uses, inline in the step
+that needs them, and the CLI stays the single source of truth.
 
 ## Measuring consumption
 

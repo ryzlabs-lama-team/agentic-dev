@@ -24,9 +24,9 @@ that section and continue. Before each spawn, run `sf clar count <RUN> --wp <P<n
 --adding <questions>`. Exit 1 means the 5-question budget would be exceeded: return
 `STATUS: under-specified` instead of asking.
 
-`sf` means `python3 .claude/swf-tools/sf.py`. Always type the full command, from the repository
-root. Use it for the mechanical steps below and do not redo its work by hand. Exit codes: `0` ok,
-`1` problems found, `2` usage error or not configured.
+`sf` = `python3 .claude/swf-tools/sf.py` (type it in full, from the repo root; `--help` on any
+command). Exit 0 ok · 1 problems found · 2 usage error or not configured. Never redo its work by
+hand.
 
 ## Inputs
 

@@ -21,10 +21,9 @@ Check what it does not: the gates, the PRD, the design, the docs, and drift.
 `STORIES`, `BASE` (the ref this work package started from), `ROUND`, and `FINDINGS PATH`. Gates,
 coverage scope and commands come from `.sw-factory/config.yaml`.
 
-**The mechanics are scripted.** `sf` means `python3 .claude/swf-tools/sf.py`. Always type the
-full command, from the repository root. Its numbers are measurements: report them, and do not
-recompute them by hand. Exit codes: `0` ok, `1` problems found, `2` usage error or not
-configured, `3` unmeasurable.
+`sf` = `python3 .claude/swf-tools/sf.py` (type it in full, from the repo root; `--help` on any
+command). Exit 0 ok · 1 problems found · 2 usage error or not configured · 3 unmeasurable. Its
+numbers are measurements: report them, do not recompute them.
 
 **"Changed since `BASE`" always includes untracked files.** Builders do not commit, so new files
 are untracked and invisible to `git diff BASE`. `sf qa changed <BASE> [--lines]` lists the union,

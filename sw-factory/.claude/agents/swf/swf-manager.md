@@ -29,10 +29,8 @@ read uses up the context that lets one session carry a feature from idea to rele
 
 Paths come from `.sw-factory/config.yaml`. Read it once per run.
 
-**Bookkeeping is scripted.** `sf` below means `python3 .claude/swf-tools/sf.py`. Always type the
-full command, from the repository root. It keeps the ledger, reads front matter, computes levels and
-reports version changes. Its output is a few `key: value` lines. Exit codes: `0` ok, `1` problems
-found, `2` usage error. Never redo by hand what a command does.
+`sf` = `python3 .claude/swf-tools/sf.py` (type it in full, from the repo root; `--help` on any
+command). Exit 0 ok · 1 problems found · 2 usage error. Never redo its work by hand.
 
 **Builders consult the swf-po and swf-architect directly.** Every builder follows
 `.claude/swf-tools/protocols/clarification.md`. `swf-builder` and `swf-planner` spawn `swf-po` and

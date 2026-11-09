@@ -416,5 +416,67 @@ t 1 "build ❌"                  "all: build fails"                 gates run al
 t 1 "coverage: not configured"  "all: unconfigured coverage reported" gates run all --run demo --label all
 t 2 "--cmd overrides one gate"  "all with --cmd"                   gates run all --run demo --cmd x
 
+# ----------------------------------------------------------------------------------- prompt lint
+# Every `sf …` command written in the agent prompts, protocols, references and README must name a
+# real group/command and only options that command accepts. The CLI is the single source of truth;
+# this catches a prompt left behind by a renamed command or flag.
+lint="$(python3 -I - "$SRC" <<'PY'
+import argparse, glob, importlib.util, os, re, sys
+src = sys.argv[1]
+spec = importlib.util.spec_from_file_location('sf', os.path.join(src, '.claude/swf-tools/sf.py'))
+sf = importlib.util.module_from_spec(spec); spec.loader.exec_module(sf)
+top = sf.build_parser()
+
+def subs(p):
+    return next((a.choices for a in p._actions if isinstance(a, argparse._SubParsersAction)), None)
+
+def options(p):
+    return {o for a in p._actions for o in a.option_strings}
+
+PREFIX = re.compile(r'^(sf|python3 \.claude/swf-tools/sf\.py)(\s+|$)')
+FENCE = re.compile(r'```[^\n]*\n(.*?)```', re.S)
+files = sorted(glob.glob(src + '/.claude/agents/swf/*.md') + glob.glob(src + '/.claude/swf-tools/**/*.md', recursive=True)
+               + [src + '/README.md'])
+checked = 0
+for f in files:
+    text = open(f, encoding='utf-8').read()
+    cmds = []
+    for block in FENCE.findall(text):
+        for line in re.sub(r'\\\n\s*', ' ', block).splitlines():
+            line = line.split(' #')[0].strip()
+            if PREFIX.match(line):
+                cmds.append(line)
+    for span in re.findall(r'`([^`]+)`', FENCE.sub('', text)):
+        span = ' '.join(span.split())
+        if PREFIX.match(span):
+            cmds.append(span)
+    for cmd in cmds:
+        tokens = PREFIX.sub('', cmd, count=1).split()
+        if not tokens:
+            continue                       # the bare definition: `sf` = `python3 …/sf.py`
+        checked += 1
+        p, path, err = top, [], None
+        while subs(p) and tokens and not tokens[0].startswith('-'):
+            t = tokens.pop(0)
+            if t not in subs(p):
+                err = 'unknown %s %r' % ('command' if path else 'group', t); break
+            p = subs(p)[t]; path.append(t)
+        rest = ' '.join(tokens)
+        if not err and subs(p) and not re.search(r'--(help|version)\b', rest):
+            err = 'incomplete command'
+        if not err:
+            bad = [o for o in re.findall(r'(?<![\w-])--[a-z][a-z-]*', rest) if o not in options(p)]
+            if bad:
+                err = 'unknown option %s for "%s"' % (', '.join(bad), ' '.join(path))
+        if err:
+            print('FAIL %s: `%s` — %s' % (os.path.relpath(f, src), cmd, err))
+print('CHECKED %d' % checked)
+PY
+)"
+lint_fail="$(grep -c '^FAIL' <<<"$lint")"
+lint_n="$(sed -n 's/^CHECKED //p' <<<"$lint")"
+if [ "$lint_fail" -eq 0 ] && [ "${lint_n:-0}" -ge 40 ]; then pass=$((pass + 1))
+else fail=$((fail + 1)); printf 'FAIL  prompt lint (%s commands checked, expected ≥ 40)\n' "${lint_n:-0}"; grep '^FAIL' <<<"$lint" | sed 's/^/        /'; fi
+
 echo "sf: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]

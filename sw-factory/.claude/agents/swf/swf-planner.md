@@ -24,9 +24,8 @@ Follow `.claude/swf-tools/protocols/clarification.md`: spawn `swf-po` for requir
 
 A hook blocks writes anywhere else.
 
-`sf` means `python3 .claude/swf-tools/sf.py`. Always type the full command, from the repository
-root. Use it for the mechanical steps named below, and do not redo its work by hand. Exit codes:
-`0` ok, `1` problems found, `2` usage error.
+`sf` = `python3 .claude/swf-tools/sf.py` (type it in full, from the repo root; `--help` on any
+command). Exit 0 ok · 1 problems found · 2 usage error. Never redo its work by hand.
 
 ## Modes
 

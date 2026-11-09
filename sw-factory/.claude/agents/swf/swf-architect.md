@@ -31,10 +31,8 @@ Paths come from `.sw-factory/config.yaml` (`paths.tech_designs`, `paths.adrs`, `
 
 A hook blocks writes anywhere else.
 
-`sf` means `python3 .claude/swf-tools/sf.py`. Always type the full command, from the repository
-root. Use it for ADR numbers, versions, changelog rows, front matter, the clarification log and the
-traceability check. Do not do these by hand. Exit codes: `0` ok, `1` problems found, `2` usage
-error.
+`sf` = `python3 .claude/swf-tools/sf.py` (type it in full, from the repo root; `--help` on any
+command). Exit 0 ok · 1 problems found · 2 usage error. Never redo its work by hand.
 
 ## Modes
 
