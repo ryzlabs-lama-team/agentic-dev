@@ -85,8 +85,8 @@ A gate disabled in the config is not held. Still report what it would have asked
   paths. Never paste document bodies.
 - You write only to `<runs>/<slug>/**`, plus `.opsx-run/**` when running the opsx-loop skill. A
   hook enforces this.
-- After every spawn, append a row to the ledger. If your context is compacted, the ledger is how
-  you recover. Re-read it before doing anything else.
+- After every spawn, append a row to the ledger, with the agent id the spawn returned. If your
+  context is compacted, the ledger is how you recover. Re-read it before doing anything else.
 
 ## Procedure
 
@@ -144,14 +144,19 @@ typo in README line 12"), is self-evidently L0. You may skip triage for it.
 
 Spawn `po` with the mode (`create` for a new PRD, `update` for an existing one), the run slug, the
 frame, the request verbatim, and any input files. On return, record the PRD path and version in
-the ledger. At **G1**, present the PRD path, the counts of FR/NFR/stories, the top assumptions and
-open questions, and ask:
+the ledger. At **G1**, present the PRD path, the counts of FR/NFR/stories, and the top
+assumptions. Ask in **one** `AskUserQuestion` call: each of the po's `HUMAN QUESTIONS` (up to 3)
+as its own question, with the po's default as the recommended option, plus this question:
 
-- **Agreed with the Product team.** Record who and when. Spawn po with `MODE: record-decision`
-  to set `status: agreed` and `agreed_by`.
+- **Agreed with the Product team.** Record who and when. The agreement covers the PRD with the
+  answers above applied.
 - **Proceed provisionally.** The PRD stays `in-review`. Every later gate repeats this warning.
-- **Revise** with the human's notes, through a fresh po spawn.
+- **Revise** with the human's notes.
 - **Abandon.**
+
+Then resume the same po with `SendMessage` (see "Resume owners to record decisions"): one message
+with `MODE: record-decision`, the open-question answers, and the agreement decision. For
+**Revise**, the message is `MODE: update` with the human's notes instead, and G1 is held again.
 
 ### 6. Design: sw-architect → G2
 
@@ -159,8 +164,8 @@ Spawn `sw-architect` with `MODE: design` (new HLD), `detail` (LLD on a topic), o
 (requirements changed), plus the PRD path. The architect may consult the po directly. At **G2**,
 present the HLD/LLD paths, the proposed ADRs (title and recommendation for each), and the risk
 flags, and ask for approval. **Ask about each proposed ADR separately.** Accepting an ADR is a
-human decision. Afterwards, spawn the architect with `MODE: record-decision` to mark the
-documents approved and the ADRs accepted or rejected.
+human decision. Afterwards, resume the same architect with `SendMessage` and
+`MODE: record-decision` to mark the documents approved and the ADRs accepted or rejected.
 
 ### 7. Plan and tracks: sw-planner + you → G3
 
@@ -176,8 +181,8 @@ At **G3**, present one line per phase:
 - The commit policy, if `git.commit: ask`: commit after each phase passes QA, or never.
 - The branch, if you are on the default branch and will commit: propose `feat/<slug>`.
 
-On approval, spawn `sw-planner` with `MODE: record-decision`, the approver, and the ledger path.
-This sets the plan to `approved` and syncs phase statuses.
+On approval, resume the same `sw-planner` with `SendMessage` and `MODE: record-decision`, the
+approver, and the ledger path. This sets the plan to `approved` and syncs phase statuses.
 
 ### 8. Build: one phase at a time
 
@@ -222,7 +227,8 @@ defect to a fresh builder.
 ### 10. Release and handover
 
 Release preparation is AI-driven. Deployment and monitoring stay with the human. If a plan was
-used, spawn `sw-planner` with `MODE: record-decision` and the ledger path to sync final phase
+used, resume `sw-planner` (or spawn it, as in "Resume owners to record decisions") with
+`MODE: record-decision` and the ledger path to sync final phase
 statuses into the plan. Offer to draft release notes and a PR description from the ledger. Push
 or open a PR only when the human asks.
 Final report: what was built, the tracks used and why, rounds used, gates passed and by whom, the
@@ -233,7 +239,7 @@ documents created or updated (paths and versions), advisories, and anything left
 | Status (from any agent) | Action |
 |---|---|
 | `ok`, `partial` | Next step. For `partial`, verification decides, not the builder's self-report |
-| `needs-human` | Batch with other pending human questions and ask. Then send the decision to the owner named in the payload (`owner: po \| sw-architect`) with `MODE: record-decision`, so it lands in a document. Then resume the waiting agent with `SendMessage` |
+| `needs-human` | Batch with other pending human questions and ask. Then send the decision to the owner named in the payload (`owner: po \| sw-architect`) with `MODE: record-decision`, so it lands in a document: resume that owner if you spawned it, otherwise spawn it fresh (see below). Then resume the waiting agent with `SendMessage` |
 | `needs-clarification` (opsx-* and other relayed builders) | Route by tag, **one owner at a time**: `po` first, then `sw-architect`, each with `MODE: clarify`. They share the clarification log, so never run them in parallel. Then resume the builder with `SendMessage`, giving the answers and the updated paths |
 | `MISROUTED` questions in a po or sw-architect payload | Send them to the other owner with `MODE: clarify` before resuming the asker |
 | `under-specified` | The upstream document is inadequate. Send the gaps to its owner (`update` / `evolve`), re-gate if the change is material, then re-run the item |
@@ -248,6 +254,12 @@ is mid-task. `SendMessage` to its agent id keeps its context. **Respawn, don't r
 retry.** A retry is worth running because a fresh builder re-reads the documents with the findings
 in hand. If a resume fails, spawn a fresh builder with the resume point, the clarifications file,
 and the work package.
+
+**Resume owners to record decisions.** The po, sw-architect or sw-planner that wrote a document
+still has it loaded. To record a human decision on it (`record-decision`) or apply a gate's
+revision notes (`update`), `SendMessage` the agent id from the spawn that wrote it (the ledger has
+it). Spawn a fresh owner only when you do not have that id: the owner was spawned by a builder,
+the planner or the architect, or the resume fails. A fresh spawn gets the same mode and inputs.
 
 ## When requirements change mid-run
 

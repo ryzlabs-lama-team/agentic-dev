@@ -26,8 +26,8 @@ Authoritative for phase status. sw-planner syncs the plan's Status column from t
 |---|---|---|---|---|---|---|
 
 ## Log
-| # | Stage | Agent | Status | Artifact | Notes |
-|---|---|---|---|---|---|
+| # | Stage | Agent | Agent id | Status | Artifact | Notes |
+|---|---|---|---|---|---|---|
 
 ## Human decisions
 | # | Gate / question | Decision | Recorded in |

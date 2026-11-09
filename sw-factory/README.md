@@ -255,8 +255,16 @@ Templates for every document are in [`.claude/sw-factory/templates/`](.claude/sw
   gates that opsx-verify does not check. It shares opsx's 2-round retry budget, so the two gates
   cannot loop forever between them.
 - **Resume for answers, respawn for retries.** A builder waiting on a human decision is
-  mid-task, so it is resumed with `SendMessage` and keeps its context. A QA retry gets a fresh
-  builder that re-reads the documents with the findings in hand.
+  mid-task, so it is resumed with `SendMessage` and keeps its context. The po, sw-architect or
+  sw-planner that wrote a document is resumed the same way to record the human's decision on it,
+  so it does not reload its instructions and re-read the document. sw-manager spawns a fresh owner
+  only when it never had that owner's id (a builder spawned it) or the resume fails. A QA retry
+  gets a fresh builder that re-reads the documents with the findings in hand.
+- **The PRD's open questions are asked at G1.** The po returns up to 3 open questions with the
+  most impact, each with options and a default. The sw-manager asks them in the same question
+  call as the agreement, then resumes the po once to record the answers and the agreement. For
+  product discovery that needs real back-and-forth, run the po as the main session for that stage
+  (`claude --agent po`).
 - **Documents evolve, they are not one-shot.** When a requirement changes, the po bumps the PRD
   and the sw-architect `evolve`s the design. Superseded ADRs get a new ADR, not an edit. The
   sw-planner replans only the phases not yet started.

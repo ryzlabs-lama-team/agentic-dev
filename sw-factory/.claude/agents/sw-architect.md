@@ -97,6 +97,7 @@ For each question:
 5. Append each question and answer to the clarification log.
 
 ### `record-decision`: write a human decision into the documents
+You may be resumed for this right after writing the design, so use what you already have loaded.
 Set ADR status (`accepted` / `rejected`, with `deciders`) and design status (`approved`,
 `approved_by`) exactly as relayed by the sw-manager. Only do this in this mode.
 

@@ -61,7 +61,8 @@ You are given the changed ids, the sw-architect's impact, and the run ledger pat
 
 ### `record-decision`: write a human decision and sync phase statuses
 You are given the decision (for example "plan approved by <name>, <date>"), and the run ledger
-path.
+path. You may be resumed for this right after writing the plan, so use what you already have
+loaded.
 1. Apply the decision exactly. Set `status` and `approved_by` as given, and add a changelog row.
 2. Sync the Phase map's Status column and the front-matter `status` (`in-progress` once any phase
    started, `done` when all are done) from the ledger's Phases table. The ledger is authoritative.

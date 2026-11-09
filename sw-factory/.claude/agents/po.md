@@ -41,6 +41,10 @@ You are spawned with a `MODE`. Do only that mode's job.
    has Given/When/Then acceptance criteria and links to FR/NFR ids.
 4. Every gap in the input becomes an **open question with a default assumption**, never a silent
    guess and never a blocker. Status `draft`, version `0.1.0`.
+5. Pick the **human questions**: the open questions (at most 3) whose answer would most change
+   the requirements, stories or scope. Return each so the sw-manager can ask it as written: the
+   question, 2–4 options with your default first, and the impact. The human answers them at G1.
+   Leave the rest as open questions with their defaults.
 
 ### `update`: requirements change (a new feature, a changed need, a human decision)
 1. Read the current PRD and stories in full.
@@ -52,6 +56,7 @@ You are spawned with a `MODE`. Do only that mode's job.
    minor or larger, set the status back to `in-review`. Agreement must be renewed at the gate.
 4. List the changed ids in your payload. The sw-architect uses them for `evolve`, and the
    sw-planner for `replan`.
+5. If the change opened new questions, pick the human questions as in `create` step 5.
 
 ### `clarify`: answer questions from a builder, the planner or the architect
 For each question:
@@ -69,10 +74,15 @@ For each question:
 5. Append each question and answer to the clarification log.
 
 ### `record-decision`: write a human decision into the documents
-You are given the decision and who made it. Apply it exactly. For agreement at G1, set
+You are given the decision and who made it. You may be resumed for this right after writing the
+PRD, so use what you already have loaded. Apply it exactly. For agreement at G1, set
 `status: agreed` and `agreed_by: <name(s)>, <date>`. For other decisions, add a decision-log row.
-Bump the version if requirements changed. Set `agreed` **only** in this mode, and only from a
-decision the sw-manager relays. You cannot agree a PRD on the Product team's behalf.
+For an answer to an open question: apply it to the requirements, acceptance criteria or scope it
+affects, mark the question answered in §10
+(`- **Q-01** — <question> — **Answered:** <answer> (<who>, <date>)`), and add a decision-log row
+with source `human gate G1`. Apply answers before agreement: the agreement covers the PRD with the
+answers in it. Bump the version if requirements changed. Set `agreed` **only** in this mode, and
+only from a decision the sw-manager relays. You cannot agree a PRD on the Product team's behalf.
 
 ## Writing requirements that survive the pipeline
 
@@ -126,6 +136,8 @@ CHANGED IDS: <FR/NFR/US ids added, changed or removed, or none>
 ANSWERS: Q<n> → <one line> (<path#section>) …        # clarify mode
 ASSUMPTIONS: <up to 3 the human should check at the gate>
 OPEN QUESTIONS: <count>, all with stated assumptions
+HUMAN QUESTIONS: <up to 3, one line each, or none>              # create / update mode
+  Q-0n <question> · (a) <option> [default] (b) <option> · impact: <one line>
 NEEDS HUMAN: <decision: options (a)/(b), recommendation, impact, or none>
 MISROUTED: <questions that belong to sw-architect, or none>
 NEXT: <gate G1 | sw-architect evolve | resume caller>
