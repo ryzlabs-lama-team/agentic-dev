@@ -11,7 +11,7 @@ mkdir -p "$PROJ/.sw-factory" "$T"
 printf 'paths:\n  runs: ".sw-factory/runs/"   # quoted, trailing slash\n' > "$PROJ/.sw-factory/config.yaml"
 command -v python3 >/dev/null 2>&1 || { echo 'SKIP  python3 not found'; exit 0; }
 
-# Fixtures. S1: an ended sw-manager session with a builder, a po it consulted, an opsx agent and a
+# Fixtures. S1: an ended swf-manager session with a builder, a swf-po it consulted, an opsx agent and a
 # switch to a second run. S2: an open session that also replays one of S1's messages (a fork).
 # S3: an ordinary session. S4: a factory session whose usage cannot be parsed.
 python3 -I - "$T" "$PROJ" <<'PY'
@@ -49,12 +49,12 @@ builder_prompt = 'TRACK: subagents\nRUN: portal\nWORK PACKAGE: docs/plans/portal
 m2_partial = asst('m2', OPUS, usage(i=1, o=1), '2026-01-01T00:00:02Z', [('t-w', 'Write', {'file_path': ledger})])
 m2_final = asst('m2', OPUS, usage(i=1, o=50), '2026-01-01T00:00:02Z')
 write(os.path.join(T, 'S1.jsonl'), [
-    {'type': 'agent-setting', 'agentSetting': 'sw-manager'},
+    {'type': 'agent-setting', 'agentSetting': 'swf-manager'},
     user('build the portal'),
     asst('m1', OPUS, usage(i=10, w5=1000, o=100), '2026-01-01T00:00:01Z'),
     m2_partial, m2_final,
     asst('m3', OPUS, usage(i=1, r=1000, o=10), '2026-01-01T00:00:03Z',
-         [('t-b', 'Agent', {'subagent_type': 'sw-builder', 'prompt': builder_prompt})]),
+         [('t-b', 'Agent', {'subagent_type': 'swf-builder', 'prompt': builder_prompt})]),
     asst('m4', OPUS, usage(i=1, r=1100, o=10), '2026-01-01T00:00:04Z',
          [('t-o', 'Agent', {'subagent_type': 'opsx-implementer', 'prompt': 'Apply the change. Be concise.'})]),
     {'type': 'system', 'subtype': 'compact_boundary'},
@@ -66,25 +66,25 @@ write(os.path.join(T, 'S1.jsonl'), [
         SONNET: {'costUSD': 0.5, 'inputTokens': 500, 'outputTokens': 0, 'cacheReadInputTokens': 0, 'cacheCreationInputTokens': 0},
         'claude-haiku-aux': {'costUSD': 0.01, 'inputTokens': 10, 'outputTokens': 1}}},
 ])
-sub('S1', 'b', 'sw-builder', 't-b', builder_prompt, [
-    asst('b1', SONNET, usage(i=5, w5=2000, o=200), '2026-01-01T00:00:03.1Z', [('t-p', 'Agent', {'subagent_type': 'po', 'prompt': 'MODE: clarify'})]),
+sub('S1', 'b', 'swf-builder', 't-b', builder_prompt, [
+    asst('b1', SONNET, usage(i=5, w5=2000, o=200), '2026-01-01T00:00:03.1Z', [('t-p', 'Agent', {'subagent_type': 'swf-po', 'prompt': 'MODE: clarify'})]),
     asst('b2', SONNET, usage(i=5, r=2000, o=300), '2026-01-01T00:00:03.5Z')])
-sub('S1', 'p', 'po', 't-p', 'MODE: clarify\nIs the date local or UTC?', [
+sub('S1', 'p', 'swf-po', 't-p', 'MODE: clarify\nIs the date local or UTC?', [
     asst('p1', OPUS, usage(i=3, w5=900, o=40), '2026-01-01T00:00:03.2Z')], parent='b', depth=2)
 sub('S1', 'o', 'opsx-implementer', 't-o', 'Apply the change. Be concise.', [
     asst('o1', SONNET, usage(i=7, w5=700, o=70), '2026-01-01T00:00:04.1Z')])
 
 qa_prompt = 'TRACK: subagents\nRUN: portal\nWORK PACKAGE: docs/plans/portal.md#P2\nROUND: 1\nFINDINGS PATH: .sw-factory/runs/portal/qa-P2-1.md'
 write(os.path.join(T, 'S2.jsonl'), [
-    {'type': 'agent-setting', 'agentSetting': 'sw-manager'},
+    {'type': 'agent-setting', 'agentSetting': 'swf-manager'},
     asst('m1', OPUS, usage(i=10, w5=1000, o=100), '2026-01-01T00:00:01Z'),  # replayed from S1
     asst('m7', OPUS, usage(i=4, r=300, o=30), '2026-01-02T00:00:01Z',
-         [('t-q', 'Agent', {'subagent_type': 'sw-qa', 'prompt': qa_prompt})]),
+         [('t-q', 'Agent', {'subagent_type': 'swf-qa', 'prompt': qa_prompt})]),
 ])
-sub('S2', 'q', 'sw-qa', 't-q', qa_prompt, [asst('q1', OPUS, usage(i=6, w5=600, o=60), '2026-01-02T00:00:02Z')])
+sub('S2', 'q', 'swf-qa', 't-q', qa_prompt, [asst('q1', OPUS, usage(i=6, w5=600, o=60), '2026-01-02T00:00:02Z')])
 
 write(os.path.join(T, 'S3.jsonl'), [user('hello'), asst('n1', OPUS, usage(i=99, o=99), '2026-01-03T00:00:00Z')])
-write(os.path.join(T, 'S4.jsonl'), [{'type': 'agent-setting', 'agentSetting': 'sw-manager'},
+write(os.path.join(T, 'S4.jsonl'), [{'type': 'agent-setting', 'agentSetting': 'swf-manager'},
                                     {'type': 'assistant', 'message': {'id': 'z', 'content': []}}])
 PY
 
@@ -109,13 +109,13 @@ check 'dedup: last copy wins, replayed id once'   "row(model='claude-opus-9', ru
 check 'auxiliary model cost kept as overhead'     "abs(sum(r['cost_usd'] for r in row(model='claude-haiku-aux')) - 0.01) < 1e-9"
 
 report --by agent
-check 'builder: run, phase, track from its prompt' "row(agent='sw-builder', run='portal', phase='P2', track='subagents')"
-check 'nested po inherits run+phase from builder'  "row(agent='po', run='portal', phase='P2')"
+check 'builder: run, phase, track from its prompt' "row(agent='swf-builder', run='portal', phase='P2', track='subagents')"
+check 'nested swf-po inherits run+phase from builder'  "row(agent='swf-po', run='portal', phase='P2')"
 check 'opsx agent inherits the main session state' "row(agent='opsx-implementer', run='portal', phase='P2')"
-check 'sw-qa phase from FINDINGS PATH'             "row(agent='sw-qa', run='portal', phase='P2')"
-check 'main switches run at the run-state path'    "row(agent='sw-manager', run='other-run')[0]['output'] == 20 and row(agent='sw-manager', run='portal', phase=None)"
-check 'peak context of the builder'                "row(agent='sw-builder')[0]['peak_context'] == 2005"
-check 'spawn counts exclude the main session'      "row(agent='sw-builder')[0]['spawns'] == 1 and row(agent='sw-manager', run='portal')[0]['spawns'] == 0"
+check 'swf-qa phase from FINDINGS PATH'             "row(agent='swf-qa', run='portal', phase='P2')"
+check 'main switches run at the run-state path'    "row(agent='swf-manager', run='other-run')[0]['output'] == 20 and row(agent='swf-manager', run='portal', phase=None)"
+check 'peak context of the builder'                "row(agent='swf-builder')[0]['peak_context'] == 2005"
+check 'spawn counts exclude the main session'      "row(agent='swf-builder')[0]['spawns'] == 1 and row(agent='swf-manager', run='portal')[0]['spawns'] == 0"
 
 report portal --by run
 check 'run filter'                                 "[r['run'] for r in rows] == ['portal']"

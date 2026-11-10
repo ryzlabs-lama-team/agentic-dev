@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Preflight for the sw-factory. Run from the target repo root.
 # Exits non-zero only if the factory itself cannot run; missing optional tracks are reported on the
-# TRACKS line, which sw-manager reads to decide what it may select.
+# TRACKS line, which swf-manager reads to decide what it may select.
 set -uo pipefail
 
 fail=0
@@ -12,7 +12,7 @@ warn() { printf '  warn  %s\n' "$1"; }
 echo "sw-factory preflight"
 
 missing=""
-for a in sw-manager po sw-architect sw-planner sw-builder sw-qa; do
+for a in swf-manager swf-po swf-architect swf-planner swf-builder swf-qa; do
   [ -f ".claude/agents/$a.md" ] || missing="$missing $a"
 done
 [ -z "$missing" ] && ok "all 6 sw-factory agents installed" || bad "missing agents:$missing"
@@ -27,12 +27,12 @@ if [ -f "$CFG" ]; then ok "$CFG present"; else bad "$CFG missing — copy .claud
 if grep -qs 'sw-factory/hooks/guard.sh' .claude/settings.json .claude/settings.local.json; then
   ok "ownership guard wired as a PreToolUse hook"
 else
-  warn "ownership guard not wired in .claude/settings.json — rerun install.sh; until then only sw-qa's drift check applies"
+  warn "ownership guard not wired in .claude/settings.json — rerun install.sh; until then only swf-qa's drift check applies"
 fi
 if command -v jq >/dev/null 2>&1 || command -v python3 >/dev/null 2>&1; then
   ok "hook JSON parser available (jq or python3)"
 else
-  warn "neither jq nor python3 on PATH — the ownership guard allows everything; sw-qa drift check still applies"
+  warn "neither jq nor python3 on PATH — the ownership guard allows everything; swf-qa drift check still applies"
 fi
 
 cfg_path() {

@@ -13,14 +13,14 @@ Commit policy: <ask | per-phase | never>
 - **Context:** <one line, or links>
 
 ## Documents
-Every document or artifact an agent reports writing, one row per file. sw-qa's drift check
+Every document or artifact an agent reports writing, one row per file. swf-qa's drift check
 treats unlisted changes as drift.
 
 | Kind | Path | Version | Status | Written by |
 |---|---|---|---|---|
 
 ## Phases
-Authoritative for phase status. sw-planner syncs the plan's Status column from this table.
+Authoritative for phase status. swf-planner syncs the plan's Status column from this table.
 
 | Phase | Level | Track | Status | Base ref | QA rounds | Notes |
 |---|---|---|---|---|---|---|

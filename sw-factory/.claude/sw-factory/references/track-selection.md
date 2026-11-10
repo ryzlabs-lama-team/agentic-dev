@@ -1,13 +1,13 @@
 # Track selection
 
-The sw-manager assigns an implementation track to every **work item**. A work item is a plan
+The swf-manager assigns an implementation track to every **work item**. A work item is a plan
 phase, or the whole request when no plan is needed. Tracks are chosen per item, not per run. A
 greenfield plan can put scaffolding through `subagents` and run its riskiest feature through
 `openspec`.
 
 ## 1. Signals
 
-The sw-architect's triage gives you these signals (`<runs>/<slug>/triage.md`). The sw-planner
+The swf-architect's triage gives you these signals (`<runs>/<slug>/triage.md`). The swf-planner
 repeats them for each phase. Do not estimate them yourself from code. If you do not have them,
 spawn the triage.
 

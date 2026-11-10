@@ -2,16 +2,16 @@
 
 An agentic software factory for Claude Code that implements the
 [AI-SDLC approach](ai-sdlc-approach-v1-notes.txt). The engineer manages the factory, and a
-Software Development Manager agent (`sw-manager`) runs it. It turns ideas into PRDs with a product
-owner agent (`po`), designs them with an architect agent (`sw-architect`), plans them in phases,
+Software Development Manager agent (`swf-manager`) runs it. It turns ideas into PRDs with a product
+owner agent (`swf-po`), designs them with an architect agent (`swf-architect`), plans them in phases,
 builds each phase on the implementation track that fits its complexity, and gates every phase on
 an independent QA agent.
 
 ```
           HUMAN-DRIVEN                                   AI-DRIVEN
  frame ─► requirements ─► design ─[G1,G2]─► plan ─[G3]─► implement ──► verify ─[G4]─► release
-            po            sw-architect      sw-planner    per phase:     sw-qa          (human
-                                            + sw-manager  direct │ subagents │          deploys,
+            swf-po        swf-architect     swf-planner   per phase:     swf-qa         (human
+                                            + swf-manager direct │ subagents │          deploys,
                                                           opsx-loop │ openspec │        monitors)
                 ▲                  ▲                          │
                 └── clarify ───────┴──── builders ask ────────┘
@@ -21,13 +21,13 @@ an independent QA agent.
 
 | AI-SDLC notes | sw-factory |
 |---|---|
-| Requirements management: PRDs in `docs/prds/`, agreed with the Product team | `po` writes and maintains `docs/prds/<slug>/prd.md` and `stories.md`. The human confirms agreement at gate G1 |
-| Systems architecture: HLDs, LLDs, ADRs in `docs/tech-designs/`, `docs/adrs/` | `sw-architect` drafts and evolves them. Only the human approves designs and accepts ADRs, at G2 |
-| Planning: plans in `docs/plans/` (`opsx-planner`) | `sw-planner` writes phased plans: infrastructure → scaffolding → basic → complex, test first |
-| Implementation: opsx-loop, opsx-loop turbo, direct input | `sw-manager` picks a track **per phase**: `direct`, `subagents`, `opsx-loop`, `openspec` |
-| Gates: >90% coverage, build passing, 100% tests passing | `sw-qa` measures them itself. They are configured in `.sw-factory/config.yaml` |
-| Artifacts: code + docs (build, run, test, deploy, configure, monitor) | `sw-builder` keeps the operational docs current, and `sw-qa` blocks on undocumented config |
-| Ideas: EM agent with PO, Architect, QA agents; talks to the user when AI can't decide | `sw-manager` is the only agent that talks to the human. Everyone else returns `needs-human` |
+| Requirements management: PRDs in `docs/prds/`, agreed with the Product team | `swf-po` writes and maintains `docs/prds/<slug>/prd.md` and `stories.md`. The human confirms agreement at gate G1 |
+| Systems architecture: HLDs, LLDs, ADRs in `docs/tech-designs/`, `docs/adrs/` | `swf-architect` drafts and evolves them. Only the human approves designs and accepts ADRs, at G2 |
+| Planning: plans in `docs/plans/` (`opsx-planner`) | `swf-planner` writes phased plans: infrastructure → scaffolding → basic → complex, test first |
+| Implementation: opsx-loop, opsx-loop turbo, direct input | `swf-manager` picks a track **per phase**: `direct`, `subagents`, `opsx-loop`, `openspec` |
+| Gates: >90% coverage, build passing, 100% tests passing | `swf-qa` measures them itself. They are configured in `.sw-factory/config.yaml` |
+| Artifacts: code + docs (build, run, test, deploy, configure, monitor) | `swf-builder` keeps the operational docs current, and `swf-qa` blocks on undocumented config |
+| Ideas: EM agent with PO, Architect, QA agents; talks to the user when AI can't decide | `swf-manager` is the only agent that talks to the human. Everyone else returns `needs-human` |
 
 ## Install
 
@@ -35,10 +35,10 @@ an independent QA agent.
 ./install.sh [--force] /path/to/your-repo
 cd /path/to/your-repo
 bash .claude/sw-factory/preflight.sh
-claude --agent sw-manager
+claude --agent swf-manager
 ```
 
-To make `sw-manager` the default for the repository, add `"agent": "sw-manager"` to
+To make `swf-manager` the default for the repository, add `"agent": "swf-manager"` to
 `.claude/settings.json`. The installer leaves your settings alone.
 
 The installer copies six agents and `.claude/sw-factory/` (protocol, references, templates, guard
@@ -58,7 +58,7 @@ Nested subagents surface their permission prompts to you. For long unattended ru
 keeps edits inside each agent's lane either way.
 
 Optional tracks need their own tooling. The preflight's `TRACKS:` line reports what it found, and
-the sw-manager never installs anything itself:
+the swf-manager never installs anything itself:
 
 | Track | Needs |
 |---|---|
@@ -67,17 +67,17 @@ the sw-manager never installs anything itself:
 
 ## Use
 
-With `claude --agent sw-manager`, ask for whatever stage you need. The examples from the AI-SDLC
+With `claude --agent swf-manager`, ask for whatever stage you need. The examples from the AI-SDLC
 notes work as written:
 
 ```
-build a prd for docs/ideas/customer-portal.md          → po → G1
+build a prd for docs/ideas/customer-portal.md          → swf-po → G1
 add authentication to this system                       → triage → lifecycle scaled to the level
-build a hld for docs/prds/customer-portal/prd.md        → sw-architect → G2
-build a lld for database migrations                     → sw-architect → G2
-document technical decision "use Postgres" as an adr    → sw-architect → human accepts/rejects
-build a plan for docs/prds/customer-portal/prd.md       → sw-planner → G3
-implement P2 of docs/plans/customer-portal.md           → track for P2 → sw-qa
+build a hld for docs/prds/customer-portal/prd.md        → swf-architect → G2
+build a lld for database migrations                     → swf-architect → G2
+document technical decision "use Postgres" as an adr    → swf-architect → human accepts/rejects
+build a plan for docs/prds/customer-portal/prd.md       → swf-planner → G3
+implement P2 of docs/plans/customer-portal.md           → track for P2 → swf-qa
 fix the 500 on GET /orders when the cart is empty       → triage → usually L0 direct
 status   |   resume customer-portal                     → from the run ledger
 ```
@@ -86,22 +86,22 @@ status   |   resume customer-portal                     → from the run ledger
 
 | Agent | Role | Writes | Model | May consult |
 |---|---|---|---|---|
-| `sw-manager` | Orchestrates the AI-SDLC, picks tracks, holds human gates. **Main session** | run state only | opus | everyone |
-| `po` | Turns ideas and needs into requirements; owns *what/why* | PRDs, stories | opus | — |
-| `sw-architect` | Designs and evolves the solution; owns *how*; triages complexity | HLDs, LLDs, ADRs, triage | opus | `po` |
-| `sw-planner` | Phased plans with per-phase complexity signals | plans | opus | `po`, `sw-architect` |
-| `sw-builder` | Implements one work package test-first, with ops docs | code, tests, ops docs | sonnet → opus on retry 2 | `po`, `sw-architect` |
-| `sw-qa` | Independent gate: coverage, tests, build, ACs, design conformance, drift | findings only | opus | — |
+| `swf-manager` | Orchestrates the AI-SDLC, picks tracks, holds human gates. **Main session** | run state only | opus | everyone |
+| `swf-po` | Turns ideas and needs into requirements; owns *what/why* | PRDs, stories | opus | — |
+| `swf-architect` | Designs and evolves the solution; owns *how*; triages complexity | HLDs, LLDs, ADRs, triage | opus | `swf-po` |
+| `swf-planner` | Phased plans with per-phase complexity signals | plans | opus | `swf-po`, `swf-architect` |
+| `swf-builder` | Implements one work package test-first, with ops docs | code, tests, ops docs | sonnet → opus on retry 2 | `swf-po`, `swf-architect` |
+| `swf-qa` | Independent gate: coverage, tests, build, ACs, design conformance, drift | findings only | opus | — |
 
 On the `opsx-loop` and `openspec` tracks, the opsx-loop stage agents (`opsx-explorer`,
-`-proposer`, `-implementer`, `-verifier`, `-syncer`) do the building. `sw-qa` runs between
+`-proposer`, `-implementer`, `-verifier`, `-syncer`) do the building. `swf-qa` runs between
 opsx-verify and sync.
 
 ## Choosing a track
 
-The sw-architect triages each change against the real codebase and returns five signals. These
+The swf-architect triages each change against the real codebase and returns five signals. These
 are R (requirements delta), D (design delta), K (risk flags), S (size) and G (greenfield). The
-sw-manager maps them to a level and a track per work item. Full rules:
+swf-manager maps them to a level and a track per work item. Full rules:
 [`track-selection.md`](.claude/sw-factory/references/track-selection.md).
 
 | Level | Typical work | Track | Human gates |
@@ -114,29 +114,29 @@ sw-manager maps them to a level and a track per work item. Full rules:
 Each signal sets a minimum level, and the work item takes the highest of them. Every combination
 maps to exactly one level. Greenfield work lands at L2 at least, so its first OpenSpec change
 seeds the specs that later brownfield changes build on. Risk only escalates: any risk flag other
-than `perf-critical` means L3 at least, plus an accepted ADR per flag. When a track is unavailable, the sw-manager uses the
+than `perf-critical` means L3 at least, plus an accepted ADR per flag. When a track is unavailable, the swf-manager uses the
 documented fallback and says what it gives up. The human can override any choice, and the
 override is recorded.
 
-## How builders talk to the po and the sw-architect
+## How builders talk to the swf-po and the swf-architect
 
 [`protocols/clarification.md`](.claude/sw-factory/protocols/clarification.md) is the contract
 every builder follows. In short:
 
 1. **Docs first.** Most questions are answered by the stories, the PRD, the HLD/LLD/ADRs or the
    code.
-2. **What vs how.** If a user or the Product team would notice the answer, ask the **po**. If only
-   engineers would, ask the **sw-architect**. Ask both, po first, when the documents contradict
+2. **What vs how.** If a user or the Product team would notice the answer, ask the **swf-po**. If only
+   engineers would, ask the **swf-architect**. Ask both, swf-po first, when the documents contradict
    each other.
 3. **Direct when possible.** Claude Code subagents can spawn subagents (up to 3 levels below the
-   main session), so `sw-builder` and `sw-planner` spawn `po` / `sw-architect` themselves.
+   main session), so `swf-builder` and `swf-planner` spawn `swf-po` / `swf-architect` themselves.
    Builders without the Agent tool (the `opsx-*` agents) return `STATUS: needs-clarification`
-   with tagged questions, and the sw-manager relays them.
+   with tagged questions, and the swf-manager relays them.
 4. **Answers land in documents.** The owner answers by updating its PRD or design (with a version
    bump and a decision-log row) and logs the exchange in `.sw-factory/runs/<run>/clarifications.md`.
    This is how the documents stay current as the work reveals gaps.
 5. **Owners don't overreach.** A clarification may refine agreed scope or approved design. If it
-   would *change* them, the owner returns `needs-human`, and the sw-manager takes it to the human.
+   would *change* them, the owner returns `needs-human`, and the swf-manager takes it to the human.
    Subagents cannot use `AskUserQuestion`.
 6. **Budget.** At most 5 questions per work package. Beyond that the package is
    `under-specified`, and the fix is an upstream document revision.
@@ -150,12 +150,12 @@ input's `agent_type`. It blocks:
 - `Write`/`Edit` outside the documents that agent owns. Builders cannot touch PRDs, designs, ADRs,
   OpenSpec specs, the factory config or `.claude/`. The `opsx-*` agents cannot touch the
   AI-SDLC documents.
-- Spawns outside the consultation graph. Builders and the planner may spawn only `po` and
-  `sw-architect`, the architect only `po`, and `po` and `sw-qa` nothing.
+- Spawns outside the consultation graph. Builders and the planner may spawn only `swf-po` and
+  `swf-architect`, the architect only `swf-po`, and `swf-po` and `swf-qa` nothing.
 
 The plain main session and non-factory agents are not governed. The hook reads paths from
 `.sw-factory/config.yaml`, resolves `..` and symlinks, and needs `jq` or `python3`. Without either
-it allows the call. Shell redirection is not covered, so `sw-qa`'s drift check is the backstop. It
+it allows the call. Shell redirection is not covered, so `swf-qa`'s drift check is the backstop. It
 covers the AI-SDLC documents, the config and `.claude/`, tracked and untracked. A change is
 legitimate only if the run ledger or the clarification log accounts for it, or it only ticks
 checkboxes. Anything else is `DOC DRIFT` and stops the run. On the opsx tracks, `opsx-verifier`
@@ -182,23 +182,23 @@ python3 .claude/sw-factory/usage.py report --format csv      # or json
 ```
 sw-factory usage · run customer-portal · 3 sessions (2 ended) · 2026-11-06 → 2026-11-07 · ~$14.82
 
-Phase  Agent       Track      Models      Spawns  Calls  Input  Cache W  Cache R  Output  Peak ctx    Cost
-—      sw-manager  —          opus-5-5         —    212   1.2k   310.4k     8.1M   41.3k     96.2k   $5.10
-—      po          —          opus-5-5         2     38     90    61.2k     1.1M   12.4k     48.0k   $0.92
-P2     sw-builder  subagents  sonnet-5-5       2    141    310   190.7k    11.6M   60.2k     71.5k   $2.31
-P2     sw-qa       subagents  opus-5-5         2     57    120    88.0k     2.2M    9.3k     55.1k  ~$1.40
+Phase  Agent        Track      Models      Spawns  Calls  Input  Cache W  Cache R  Output  Peak ctx    Cost
+—      swf-manager  —          opus-5-5         —    212   1.2k   310.4k     8.1M   41.3k     96.2k   $5.10
+—      swf-po       —          opus-5-5         2     38     90    61.2k     1.1M   12.4k     48.0k   $0.92
+P2     swf-builder  subagents  sonnet-5-5       2    141    310   190.7k    11.6M   60.2k     71.5k   $2.31
+P2     swf-qa       subagents  opus-5-5         2     57    120    88.0k     2.2M    9.3k     55.1k  ~$1.40
 ```
 
-Run it **in a terminal of its own**. Running it with `!` inside the sw-manager session would put
+Run it **in a terminal of its own**. Running it with `!` inside the swf-manager session would put
 the report into that session's context.
 
 - **Attribution.** A subagent's run, phase and track come from its spawn prompt (`RUN:`,
   `TRACK:`, the `#P<n>` work package, the `qa-P<n>-…` findings path). A nested consultation, such as
-  a po asked by a builder, inherits from the agent that spawned it. A spawn without these fields,
-  such as an `opsx-*` stage agent, inherits the sw-manager's current run. The sw-manager's own usage
+  a swf-po asked by a builder, inherits from the agent that spawned it. A spawn without these fields,
+  such as an `opsx-*` stage agent, inherits the swf-manager's current run. The swf-manager's own usage
   is split by the run it was working on, which comes from the last run it spawned for or whose
   run-state files it touched. Peak context is the largest single prompt. It shows how well the
-  sw-manager's context discipline holds over a long run.
+  swf-manager's context discipline holds over a long run.
 - **Cost.** When a session ends, Claude Code records its own cost per model, subagents included.
   The report splits that figure across the session's agents by weighted tokens, so its totals
   match Claude Code. Usage that has no recorded cost yet, such as a session still open, is priced
@@ -218,18 +218,18 @@ the report into that session's context.
 
 ```
 docs/
-  prds/<slug>/prd.md, stories.md          po
-  tech-designs/<system>/hld.md, lld-*.md  sw-architect
-  adrs/NNNN-<title>.md                    sw-architect (accepted only by humans)
-  plans/<slug>.md                         sw-planner
-  operations/                             sw-builder (if the repo has no better place)
+  prds/<slug>/prd.md, stories.md          swf-po
+  tech-designs/<system>/hld.md, lld-*.md  swf-architect
+  adrs/NNNN-<title>.md                    swf-architect (accepted only by humans)
+  plans/<slug>.md                         swf-planner
+  operations/                             swf-builder (if the repo has no better place)
 .sw-factory/
   config.yaml                             yours; created once
   runs/<slug>/                            gitignored run state
-    ledger.md                             sw-manager's memory and the record of who wrote what
-    triage.md                             sw-architect
-    clarifications.md                     po / sw-architect (one at a time)
-    qa-<P<n>|direct>-<round>.md           sw-qa
+    ledger.md                             swf-manager's memory and the record of who wrote what
+    triage.md                             swf-architect
+    clarifications.md                     swf-po / swf-architect (one at a time)
+    qa-<P<n>|direct>-<round>.md           swf-qa
     .usage/<session>.json                 usage snapshots (SessionEnd hook; no agent reads them)
 ```
 
@@ -237,7 +237,7 @@ Templates for every document are in [`.claude/sw-factory/templates/`](.claude/sw
 
 ## Design notes
 
-- **sw-manager is the main session, not a subagent.** Only the main session can ask the human,
+- **swf-manager is the main session, not a subagent.** Only the main session can ask the human,
   and the human gates are the reason the factory can be trusted. Run as `--agent`, its body
   replaces Claude Code's default system prompt, so it carries its own rules for talking to the
   human and for git. If it is spawned as a subagent anyway, it detects that (no
@@ -249,25 +249,25 @@ Templates for every document are in [`.claude/sw-factory/templates/`](.claude/sw
   its auth phase on `openspec`. The planner isolates risky concerns into their own phases for
   exactly this reason.
 - **Quiet while working.** No agent narrates work in progress. Subagents speak only through their
-  return payload. The sw-manager speaks to you at gates, at questions and at results, with at most
+  return payload. The swf-manager speaks to you at gates, at questions and at results, with at most
   one line when a phase starts. The `opsx-*` agents get the same rule in their spawn prompt.
-- **Writer ≠ approver.** sw-qa is always a fresh spawn. On the opsx tracks it adds the AI-SDLC
+- **Writer ≠ approver.** swf-qa is always a fresh spawn. On the opsx tracks it adds the AI-SDLC
   gates that opsx-verify does not check. It shares opsx's 2-round retry budget, so the two gates
   cannot loop forever between them.
 - **Resume for answers, respawn for retries.** A builder waiting on a human decision is
-  mid-task, so it is resumed with `SendMessage` and keeps its context. The po, sw-architect or
-  sw-planner that wrote a document is resumed the same way to record the human's decision on it,
-  so it does not reload its instructions and re-read the document. sw-manager spawns a fresh owner
+  mid-task, so it is resumed with `SendMessage` and keeps its context. The swf-po, swf-architect or
+  swf-planner that wrote a document is resumed the same way to record the human's decision on it,
+  so it does not reload its instructions and re-read the document. swf-manager spawns a fresh owner
   only when it never had that owner's id (a builder spawned it) or the resume fails. A QA retry
   gets a fresh builder that re-reads the documents with the findings in hand.
-- **The PRD's open questions are asked at G1.** The po returns up to 3 open questions with the
-  most impact, each with options and a default. The sw-manager asks them in the same question
-  call as the agreement, then resumes the po once to record the answers and the agreement. For
-  product discovery that needs real back-and-forth, run the po as the main session for that stage
-  (`claude --agent po`).
-- **Documents evolve, they are not one-shot.** When a requirement changes, the po bumps the PRD
-  and the sw-architect `evolve`s the design. Superseded ADRs get a new ADR, not an edit. The
-  sw-planner replans only the phases not yet started.
+- **The PRD's open questions are asked at G1.** The swf-po returns up to 3 open questions with the
+  most impact, each with options and a default. The swf-manager asks them in the same question
+  call as the agreement, then resumes the swf-po once to record the answers and the agreement. For
+  product discovery that needs real back-and-forth, run the swf-po as the main session for that stage
+  (`claude --agent swf-po`).
+- **Documents evolve, they are not one-shot.** When a requirement changes, the swf-po bumps the PRD
+  and the swf-architect `evolve`s the design. Superseded ADRs get a new ADR, not an edit. The
+  swf-planner replans only the phases not yet started.
 
 ## Not implemented yet
 
@@ -286,12 +286,12 @@ Templates for every document are in [`.claude/sw-factory/templates/`](.claude/sw
 ```
 .claude/
   agents/
-    sw-manager.md   po.md   sw-architect.md   sw-planner.md   sw-builder.md   sw-qa.md
+    swf-manager.md   swf-po.md   swf-architect.md   swf-planner.md   swf-builder.md   swf-qa.md
   sw-factory/
     preflight.sh                    factory checks + TRACKS line
     usage.py                        token and cost report (for the human; agents never read it)
     hooks/guard.sh                  document ownership + spawn allowlist
-    protocols/clarification.md      the builder ↔ po / sw-architect contract
+    protocols/clarification.md      the builder ↔ swf-po / swf-architect contract
     references/
       track-selection.md            signals → level → track
       tracks/{direct,subagents,opsx-loop}.md   playbooks

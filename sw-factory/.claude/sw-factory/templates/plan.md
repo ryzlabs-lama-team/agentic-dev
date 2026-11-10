@@ -16,14 +16,14 @@ approved_by: ~
 
 ## Phase map
 Phases run in order: infrastructure → scaffolding → basic features → complex features.
-A phase is the unit sw-manager assigns to one implementation track.
+A phase is the unit swf-manager assigns to one implementation track.
 
 | Phase | Goal | Stories | Level | Track (recommended) | Depends on | Status |
 |---|---|---|---|---|---|---|
 | P1 | <goal> | US-<KEY>-001 | L1 | subagents | — | todo |
 
 Status values: todo | in-progress | blocked | done. The run ledger is authoritative, and
-sw-planner syncs this column from it. `done` phases are immutable: a later change adds a new phase
+swf-planner syncs this column from it. `done` phases are immutable: a later change adds a new phase
 rather than rewriting a finished one.
 
 ---

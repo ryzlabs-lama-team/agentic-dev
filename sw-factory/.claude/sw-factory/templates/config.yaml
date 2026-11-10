@@ -3,11 +3,11 @@
 # Every sw-factory agent reads this file. Paths are relative to the repository root.
 
 paths:
-  prds: docs/prds                  # po: docs/prds/<slug>/prd.md + stories.md
-  tech_designs: docs/tech-designs  # sw-architect: docs/tech-designs/<system>/hld.md, lld-<topic>.md
-  adrs: docs/adrs                  # sw-architect: docs/adrs/NNNN-<title>.md (the AI-SDLC notes say "docs/ards")
-  plans: docs/plans                # sw-planner: docs/plans/<slug>.md
-  ops_docs: docs/operations        # sw-builder: build, run, test, deploy, configure, monitor
+  prds: docs/prds                  # swf-po: docs/prds/<slug>/prd.md + stories.md
+  tech_designs: docs/tech-designs  # swf-architect: docs/tech-designs/<system>/hld.md, lld-<topic>.md
+  adrs: docs/adrs                  # swf-architect: docs/adrs/NNNN-<title>.md (the AI-SDLC notes say "docs/ards")
+  plans: docs/plans                # swf-planner: docs/plans/<slug>.md
+  ops_docs: docs/operations        # swf-builder: build, run, test, deploy, configure, monitor
   runs: .sw-factory/runs           # run state — ledger, triage, clarifications, QA findings (gitignored)
 
 # Implementation gates (AI-SDLC: ">90% code coverage; build passing; 100% tests passing").
@@ -17,7 +17,7 @@ gates:
   tests_passing: 100               # percent of tests that must pass; anything else blocks
   build_passing: true
 
-# Leave a command empty to let sw-builder / sw-qa discover it from the repo (package.json,
+# Leave a command empty to let swf-builder / swf-qa discover it from the repo (package.json,
 # Makefile, pyproject.toml, *.csproj, go.mod, …) and report what they ran.
 commands:
   build: ""
@@ -25,7 +25,7 @@ commands:
   coverage: ""
   lint: ""
 
-# Human gates. Setting one to false lets sw-manager proceed on that gate without stopping;
+# Human gates. Setting one to false lets swf-manager proceed on that gate without stopping;
 # it still reports what it would have asked. Track-internal gates (the opsx-loop spec gate and
 # the openspec checkpoints) cannot be disabled here.
 human_gates:
@@ -35,10 +35,10 @@ human_gates:
   verification: true               # final human verification before release
 
 tracks:
-  # Tracks sw-manager may select. Remove one to forbid it even when it is installed.
+  # Tracks swf-manager may select. Remove one to forbid it even when it is installed.
   enabled: [direct, subagents, opsx-loop, openspec]
   opsx_archive: ask                # ask | yes | no — archive OpenSpec changes after sync
 
 git:
   commit: ask                      # ask (decide at the plan gate) | per-phase | never
-  # sw-manager never pushes, never deploys, and never commits on the default branch.
+  # swf-manager never pushes, never deploys, and never commits on the default branch.

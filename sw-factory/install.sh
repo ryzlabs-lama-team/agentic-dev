@@ -37,7 +37,7 @@ manifest_hash_for() {
 }
 
 LIST="$( {
-  for a in sw-manager po sw-architect sw-planner sw-builder sw-qa; do printf '.claude/agents/%s.md\n' "$a"; done
+  for a in swf-manager swf-po swf-architect swf-planner swf-builder swf-qa; do printf '.claude/agents/%s.md\n' "$a"; done
   find "$SRC/.claude/sw-factory" -type f ! -name '.DS_Store' | while IFS= read -r f; do printf '%s\n' "${f#"$SRC"/}"; done
 } | LC_ALL=C sort)"
 
@@ -124,4 +124,4 @@ fi
 
 echo
 echo "Installed into $DEST"
-echo "Next: cd $DEST && bash .claude/sw-factory/preflight.sh && claude --agent sw-manager"
+echo "Next: cd $DEST && bash .claude/sw-factory/preflight.sh && claude --agent swf-manager"

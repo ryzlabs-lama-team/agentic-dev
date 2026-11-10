@@ -18,7 +18,7 @@ and it has no open question without a stated assumption. Builders only implement
 - **Status:** draft            <!-- draft | ready | in-progress | done | dropped -->
 - **Priority:** must           <!-- must | should | could -->
 - **Requirements:** FR-001, NFR-001
-- **Plan phase:** ~            <!-- set by sw-planner, e.g. docs/plans/<slug>.md#P2 -->
+- **Plan phase:** ~            <!-- set by swf-planner, e.g. docs/plans/<slug>.md#P2 -->
 
 As a **<persona>**, I want **<capability>**, so that **<benefit>**.
 

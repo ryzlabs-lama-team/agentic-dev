@@ -26,8 +26,8 @@ import re
 import sys
 import time
 
-FACTORY = ('sw-manager', 'po', 'sw-architect', 'sw-planner', 'sw-builder', 'sw-qa')
-AGENT_ORDER = ('sw-manager', 'main', 'po', 'sw-architect', 'sw-planner', 'sw-builder', 'sw-qa')
+FACTORY = ('swf-manager', 'swf-po', 'swf-architect', 'swf-planner', 'swf-builder', 'swf-qa')
+AGENT_ORDER = ('swf-manager', 'main', 'swf-po', 'swf-architect', 'swf-planner', 'swf-builder', 'swf-qa')
 # Price of each token kind relative to one uncached input token (Anthropic's price structure).
 # Only used to split Claude Code's own per-model cost between agents, and to derive rates.
 WEIGHT = {'input': 1.0, 'cache_write_5m': 1.25, 'cache_write_1h': 2.0, 'cache_read': 0.1, 'output': 5.0}
@@ -107,7 +107,7 @@ def first(pattern, text):
 
 
 def spawn_fields(prompt):
-    """RUN / TRACK / MODE / ROUND / phase from a spawn prompt (sw-manager.md step 8, the playbooks)."""
+    """RUN / TRACK / MODE / ROUND / phase from a spawn prompt (swf-manager.md step 8, the playbooks)."""
     phase = (first(r'qa-(P\d+)-\d+', prompt) or first(r'#(P\d+)\b', prompt)
              or first(r'^\s*[-*]?\s*(?:WORK PACKAGE|TASK|PHASE):[^\n]*?\b(P\d+)\b', prompt))
     if not phase:  # OpenSpec change ids are <slug>-p<n>

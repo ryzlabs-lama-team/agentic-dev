@@ -3,10 +3,10 @@
 # Write|Edit|NotebookEdit|Agent|Task. It reads the calling agent from the hook input's
 # `agent_type` and enforces:
 #   - document ownership: each factory agent writes only the documents it owns
-#   - consultation: builders may spawn only po / sw-architect, the architect only po
+#   - consultation: builders may spawn only swf-po / swf-architect, the architect only swf-po
 # Calls from the plain main session or from non-factory agents are not governed.
 # Exit 2 blocks the call and shows stderr to the agent; exit 0 allows it. Without jq or python3
-# the input cannot be parsed, so the call is allowed and sw-qa's drift check is the backstop.
+# the input cannot be parsed, so the call is allowed and swf-qa's drift check is the backstop.
 set -uo pipefail
 set -f   # path patterns below must not glob against the filesystem
 
@@ -42,7 +42,7 @@ for path in sys.argv[1:]:
 ROLE="$(field .agent_type)"
 TOOL="$(field .tool_name)"
 case "$ROLE" in
-  sw-manager|po|sw-architect|sw-planner|sw-builder|sw-qa|opsx-*) ;;
+  swf-manager|swf-po|swf-architect|swf-planner|swf-builder|swf-qa|opsx-*) ;;
   *) exit 0 ;;
 esac
 
@@ -64,13 +64,13 @@ case "$TOOL" in
     # An Agent call without subagent_type spawns the general-purpose agent.
     type="$(field .tool_input.subagent_type)"; type="${type:-general-purpose}"
     case "$ROLE" in
-      sw-builder|sw-planner) allowed='po sw-architect' ;;
-      sw-architect)          allowed='po' ;;
-      sw-manager)            exit 0 ;;   # restricted by its own `tools: Agent(...)` allowlist
+      swf-builder|swf-planner) allowed='swf-po swf-architect' ;;
+      swf-architect)          allowed='swf-po' ;;
+      swf-manager)            exit 0 ;;   # restricted by its own `tools: Agent(...)` allowlist
       *)                     allowed='' ;;
     esac
     for a in $allowed; do [ "$type" = "$a" ] && exit 0; done
-    block "$ROLE may consult only: ${allowed:-nobody}. Requested: $type. Put the question in your return payload for the sw-manager instead."
+    block "$ROLE may consult only: ${allowed:-nobody}. Requested: $type. Put the question in your return payload for the swf-manager instead."
     ;;
   Write|Edit|NotebookEdit) ;;
   *) exit 0 ;;
@@ -125,23 +125,23 @@ RUNS="$(cfg_path runs .sw-factory/runs)"
 GUARDED='.sw-factory/config.yaml .claude/*'
 
 owner_of() {
-  if matches "$1" "$PRDS/*"; then echo po
-  elif matches "$1" "$DESIGNS/*" "$ADRS/*"; then echo sw-architect
-  elif matches "$1" "$PLANS/*"; then echo sw-planner
+  if matches "$1" "$PRDS/*"; then echo swf-po
+  elif matches "$1" "$DESIGNS/*" "$ADRS/*"; then echo swf-architect
+  elif matches "$1" "$PLANS/*"; then echo swf-planner
   elif matches "$1" 'openspec/*'; then echo 'the OpenSpec stage agents'
-  else echo 'the human (via sw-manager)'; fi
+  else echo 'the human (via swf-manager)'; fi
 }
 deny() {
   block "$ROLE may not write $rel; it is owned by $(owner_of "$rel"). Ask the owner (.claude/sw-factory/protocols/clarification.md) or report it in your return payload."
 }
 
 case "$ROLE" in
-  po)           matches "$rel" "$PRDS/*" "$RUNS/*" || deny ;;
-  sw-architect) matches "$rel" "$DESIGNS/*" "$ADRS/*" "$RUNS/*" || deny ;;
-  sw-planner)   matches "$rel" "$PLANS/*" "$RUNS/*" || deny ;;
-  sw-qa)        matches "$rel" "$RUNS/*" || deny ;;
-  sw-manager)   matches "$rel" "$RUNS/*" '.opsx-run/*' || deny ;;
-  sw-builder)   matches "$rel" "$PRDS/*" "$DESIGNS/*" "$ADRS/*" 'openspec/*' $GUARDED && deny ;;
+  swf-po)           matches "$rel" "$PRDS/*" "$RUNS/*" || deny ;;
+  swf-architect) matches "$rel" "$DESIGNS/*" "$ADRS/*" "$RUNS/*" || deny ;;
+  swf-planner)   matches "$rel" "$PLANS/*" "$RUNS/*" || deny ;;
+  swf-qa)        matches "$rel" "$RUNS/*" || deny ;;
+  swf-manager)   matches "$rel" "$RUNS/*" '.opsx-run/*' || deny ;;
+  swf-builder)   matches "$rel" "$PRDS/*" "$DESIGNS/*" "$ADRS/*" 'openspec/*' $GUARDED && deny ;;
   opsx-*)       matches "$rel" "$PRDS/*" "$DESIGNS/*" "$ADRS/*" "$PLANS/*" $GUARDED && deny ;;
 esac
 exit 0

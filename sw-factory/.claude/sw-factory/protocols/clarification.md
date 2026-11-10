@@ -8,14 +8,14 @@ feature.
 
 | Owner | Owns | Documents | Ask about |
 |---|---|---|---|
-| **po** | *What* and *why* | `<prds>/<slug>/prd.md`, `stories.md` | Scope, user-visible behaviour, acceptance criteria, edge cases a user would notice, priorities, NFR **targets**, wording users see |
-| **sw-architect** | *How* | `<tech_designs>/**`, `<adrs>/**` | Components, where code goes, interfaces and contracts, data model and migrations, technology and library choices, patterns, NFR **tactics**, security mechanisms |
+| **swf-po** | *What* and *why* | `<prds>/<slug>/prd.md`, `stories.md` | Scope, user-visible behaviour, acceptance criteria, edge cases a user would notice, priorities, NFR **targets**, wording users see |
+| **swf-architect** | *How* | `<tech_designs>/**`, `<adrs>/**` | Components, where code goes, interfaces and contracts, data model and migrations, technology and library choices, patterns, NFR **tactics**, security mechanisms |
 
 Paths in `<…>` come from `.sw-factory/config.yaml`.
 
 Use this to decide between them: if a user or the Product team would notice the answer, ask the
-**po**. If only engineers would notice it, ask the **sw-architect**. When the PRD and the design
-contradict each other, ask both. Tag the question `[po+sw-architect]` and ask the po first,
+**swf-po**. If only engineers would notice it, ask the **swf-architect**. When the PRD and the design
+contradict each other, ask both. Tag the question `[swf-po+swf-architect]` and ask the swf-po first,
 because requirements constrain design and not the other way round.
 
 ## Before you ask
@@ -36,9 +36,9 @@ because requirements constrain design and not the other way round.
 
 How you ask depends on whether you have the `Agent` tool.
 
-### If you have the `Agent` tool (sw-builder, sw-planner, sw-architect)
+### If you have the `Agent` tool (swf-builder, swf-planner, swf-architect)
 
-Spawn the owner directly. Use `subagent_type: po` or `subagent_type: sw-architect`, and nothing
+Spawn the owner directly. Use `subagent_type: swf-po` or `subagent_type: swf-architect`, and nothing
 else. Send **one spawn per owner per need**, with every question for that owner in it:
 
 ```
@@ -57,13 +57,13 @@ returns the path#section. **The updated document is authoritative, not the reply
 that section before you continue.
 
 If the owner lists questions under `MISROUTED`, they belong to the other owner. Re-ask them there
-once. Ask the po first and the sw-architect second, never both at the same time: they share the
+once. Ask the swf-po first and the swf-architect second, never both at the same time: they share the
 clarification log.
 
 If the owner returns `STATUS: needs-human`, the decision is above both of you. Stop at a safe
 point: the build compiles, or the in-progress task is reverted. Then return to your caller with
-`STATUS: needs-human` and `NEEDS HUMAN: owner: <po | sw-architect> — <the owner's framed decision,
-verbatim>`. The sw-manager takes it to the human, has that owner record the decision, and
+`STATUS: needs-human` and `NEEDS HUMAN: owner: <swf-po | swf-architect> — <the owner's framed decision,
+verbatim>`. The swf-manager takes it to the human, has that owner record the decision, and
 resumes you with the answer.
 
 ### If you do not have the `Agent` tool (opsx-* agents, anything else)
@@ -74,14 +74,14 @@ Stop at a safe point and return to your caller with:
 STATUS: needs-clarification
 RESUME POINT: <task id you stopped at; does the tree build; do tests pass>
 QUESTIONS:
-- Q1 [po | sw-architect | po+sw-architect] <question>
+- Q1 [swf-po | swf-architect | swf-po+swf-architect] <question>
   Context: <…>
   Options: (a) <…> (b) <…>
   Default: <…>
   Blocks: <task ids>
 ```
 
-The sw-manager routes the questions to the owners, po first and then sw-architect, and resumes
+The swf-manager routes the questions to the owners, swf-po first and then swf-architect, and resumes
 you with the answers and the updated document paths.
 
 ## Budget
@@ -93,8 +93,8 @@ is an upstream document revision, not a longer conversation.
 ## Never
 
 - Edit a document you do not own, even to fix an obvious typo. Report it instead. Hooks block
-  this for sw-factory agents, and sw-qa reports any edits that get through as `DOC DRIFT`.
+  this for sw-factory agents, and swf-qa reports any edits that get through as `DOC DRIFT`.
 - Treat an owner's answer as permission to expand scope. A clarification resolves an ambiguity;
-  a scope change goes through the sw-manager and the human.
+  a scope change goes through the swf-manager and the human.
 - Hide a disagreement. If an answer contradicts the code or another document, say so in your
   payload.
