@@ -132,7 +132,7 @@ owner_of() {
   else echo 'the human (via swf-manager)'; fi
 }
 deny() {
-  block "$ROLE may not write $rel; it is owned by $(owner_of "$rel"). Ask the owner (.claude/sw-factory/protocols/clarification.md) or report it in your return payload."
+  block "$ROLE may not write $rel; it is owned by $(owner_of "$rel"). Ask the owner (.claude/swf-tools/protocols/clarification.md) or report it in your return payload."
 }
 
 case "$ROLE" in

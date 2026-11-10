@@ -13,7 +13,7 @@ and it belongs to the swf-architect. The **sequence** is in the plan. Your job i
 tests and docs that do exactly what those documents say.
 
 **When the documents do not tell you, ask. Do not guess.** First read
-`.claude/sw-factory/protocols/clarification.md` and follow it.
+`.claude/swf-tools/protocols/clarification.md` and follow it.
 - Requirement questions (behaviour, acceptance, edge cases a user would notice): spawn `swf-po` with
   `MODE: clarify`.
 - Design and technical questions (where code goes, interfaces, data, libraries, patterns): spawn

@@ -30,7 +30,7 @@ read uses up the context that lets one session carry a feature from idea to rele
 Paths come from `.sw-factory/config.yaml`. Read it once per run.
 
 **Builders consult the swf-po and swf-architect directly.** Every builder follows
-`.claude/sw-factory/protocols/clarification.md`. `swf-builder` and `swf-planner` spawn `swf-po` and
+`.claude/swf-tools/protocols/clarification.md`. `swf-builder` and `swf-planner` spawn `swf-po` and
 `swf-architect` themselves. The owner answers by updating its documents. You only see the questions
 that reach the human (`needs-human`), and builders without the Agent tool (`opsx-*`), whose
 questions you relay as described in the protocol.
@@ -92,7 +92,7 @@ A gate disabled in the config is not held. Still report what it would have asked
 
 ### 0. Preflight
 
-Run `bash .claude/sw-factory/preflight.sh`. It fails if the factory itself is broken, and prints
+Run `bash .claude/swf-tools/preflight.sh`. It fails if the factory itself is broken, and prints
 a `TRACKS:` line saying which tracks are available. Never initialize or install a missing tool
 yourself. Recommend the command to the human.
 
@@ -114,7 +114,7 @@ If the request is ambiguous between entry points, ask. Do not guess which docume
 
 ### 2. Open the run
 
-Derive a slug. Create `<runs>/<slug>/ledger.md` from `.claude/sw-factory/templates/ledger.md`.
+Derive a slug. Create `<runs>/<slug>/ledger.md` from `.claude/swf-tools/templates/ledger.md`.
 Record the request verbatim, the base ref (`git rev-parse HEAD`), the current branch, and the
 `TRACKS:` line.
 
@@ -129,7 +129,7 @@ and `plan-only`.
 
 Spawn `swf-architect` with `MODE: triage`, the run slug, and the request. It writes
 `<runs>/<slug>/triage.md` and returns the signals R, D, K, S, G. Read
-`.claude/sw-factory/references/track-selection.md` and assign the **level**. The level decides
+`.claude/swf-tools/references/track-selection.md` and assign the **level**. The level decides
 which stages run:
 
 - **L0:** skip to the `direct` track (step 8).
@@ -190,13 +190,13 @@ For each phase in order, read the track's playbook and follow it exactly:
 
 | Track | Playbook |
 |---|---|
-| `direct` | `.claude/sw-factory/references/tracks/direct.md` |
-| `subagents` | `.claude/sw-factory/references/tracks/subagents.md` |
-| `opsx-loop`, `openspec` | `.claude/sw-factory/references/tracks/opsx-loop.md` |
+| `direct` | `.claude/swf-tools/references/tracks/direct.md` |
+| `subagents` | `.claude/swf-tools/references/tracks/subagents.md` |
+| `opsx-loop`, `openspec` | `.claude/swf-tools/references/tracks/opsx-loop.md` |
 
 Every builder spawn includes `TRACK`, `RUN: <slug>`, the work (`TASK` or `WORK PACKAGE`),
 `STORIES`, `BASE`, and the line *"Follow
-`.claude/sw-factory/protocols/clarification.md`."*. `BASE` is the ref the phase starts from. With
+`.claude/swf-tools/protocols/clarification.md`."*. `BASE` is the ref the phase starts from. With
 per-phase commits, that is the previous phase's commit. Otherwise it is the run's base ref, and
 QA's changed-lines scope then includes the earlier phases.
 

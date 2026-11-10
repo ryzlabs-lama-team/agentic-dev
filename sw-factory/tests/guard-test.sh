@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Tests for .claude/sw-factory/hooks/guard.sh against a throwaway project.
+# Tests for .claude/swf-tools/hooks/guard.sh against a throwaway project.
 #   bash tests/guard-test.sh
 set -uo pipefail
 
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-GUARD="$SRC/.claude/sw-factory/hooks/guard.sh"
+GUARD="$SRC/.claude/swf-tools/hooks/guard.sh"
 BASE="$(mktemp -d)"; trap 'rm -rf "$BASE"' EXIT
 PROJ="$BASE/proj"; LINK="$BASE/link"
 mkdir -p "$PROJ/.sw-factory" "$PROJ/docs" && ln -s "$PROJ" "$LINK"
@@ -53,7 +53,7 @@ expect block "builder writes PRD"                     <<< "$(write swf-builder "
 expect block "builder writes ADR"                     <<< "$(write swf-builder "$PROJ/docs/adrs/0001-db.md")"
 expect block "builder writes openspec spec"           <<< "$(write swf-builder "$PROJ/openspec/specs/auth/spec.md")"
 expect block "builder lowers coverage gate"           <<< "$(write swf-builder "$PROJ/.sw-factory/config.yaml")"
-expect block "builder edits its own guard"            <<< "$(write swf-builder "$PROJ/.claude/sw-factory/hooks/guard.sh")"
+expect block "builder edits its own guard"            <<< "$(write swf-builder "$PROJ/.claude/swf-tools/hooks/guard.sh")"
 expect block "builder escapes via .."                 <<< "$(write swf-builder "$PROJ/src/../docs/adrs/0001-db.md")"
 expect block "builder via symlinked project dir"      "$LINK" <<< "$(write swf-builder "$PROJ/docs/adrs/0001-db.md")"
 expect block "builder via symlinked file path"        <<< "$(write swf-builder "$LINK/docs/adrs/0001-db.md")"

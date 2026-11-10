@@ -34,17 +34,20 @@ an independent QA agent.
 ```sh
 ./install.sh [--force] /path/to/your-repo
 cd /path/to/your-repo
-bash .claude/sw-factory/preflight.sh
+bash .claude/swf-tools/preflight.sh
 claude --agent swf-manager
 ```
 
 To make `swf-manager` the default for the repository, add `"agent": "swf-manager"` to
 `.claude/settings.json`. The installer leaves your settings alone.
 
-The installer copies six agents and `.claude/sw-factory/` (protocol, references, templates, guard
-hook, preflight, usage report). It also:
+The installer copies six agents into `.claude/agents/swf/` and `.claude/swf-tools/` (protocol,
+references, templates, guard hook, preflight, usage report). It also:
 
 - creates `.sw-factory/config.yaml` **once** and never overwrites it;
+- removes unmodified copies left in `.claude/agents/` and `.claude/sw-factory/` by earlier
+  installs, warns about customized ones instead of deleting them, and repoints old hook entries
+  at `.claude/swf-tools/`;
 - merges two hooks into `.claude/settings.json`, keeping your existing settings: the ownership
   guard (`hooks.PreToolUse`) and the usage snapshot (`hooks.SessionEnd`). It never touches invalid
   JSON and prints the entries for you to add instead;
@@ -102,7 +105,7 @@ opsx-verify and sync.
 The swf-architect triages each change against the real codebase and returns five signals. These
 are R (requirements delta), D (design delta), K (risk flags), S (size) and G (greenfield). The
 swf-manager maps them to a level and a track per work item. Full rules:
-[`track-selection.md`](.claude/sw-factory/references/track-selection.md).
+[`track-selection.md`](.claude/swf-tools/references/track-selection.md).
 
 | Level | Typical work | Track | Human gates |
 |---|---|---|---|
@@ -120,7 +123,7 @@ override is recorded.
 
 ## How builders talk to the swf-po and the swf-architect
 
-[`protocols/clarification.md`](.claude/sw-factory/protocols/clarification.md) is the contract
+[`protocols/clarification.md`](.claude/swf-tools/protocols/clarification.md) is the contract
 every builder follows. In short:
 
 1. **Docs first.** Most questions are answered by the stories, the PRD, the HLD/LLD/ADRs or the
@@ -143,7 +146,7 @@ every builder follows. In short:
 
 ## Document ownership is enforced
 
-A project-level `PreToolUse` hook ([`hooks/guard.sh`](.claude/sw-factory/hooks/guard.sh)), which
+A project-level `PreToolUse` hook ([`hooks/guard.sh`](.claude/swf-tools/hooks/guard.sh)), which
 `install.sh` merges into `.claude/settings.json`, identifies the calling agent from the hook
 input's `agent_type`. It blocks:
 
@@ -167,16 +170,16 @@ and `--agent` sessions. In Claude Code 2.1.318 they did not fire in either mode.
 
 ## Measuring consumption
 
-[`usage.py`](.claude/sw-factory/usage.py) reports what a run consumed: tokens, cost, API calls and
+[`usage.py`](.claude/swf-tools/usage.py) reports what a run consumed: tokens, cost, API calls and
 peak context per agent, phase, track, model or session. It reads the transcripts Claude Code
 already writes for every session and subagent. No agent runs it, reads its output or knows it
 exists, so measuring adds nothing to any agent's context.
 
 ```sh
-python3 .claude/sw-factory/usage.py report                   # every run, by phase and agent
-python3 .claude/sw-factory/usage.py report customer-portal   # one run
-python3 .claude/sw-factory/usage.py report --by track        # or phase | model | session | run
-python3 .claude/sw-factory/usage.py report --format csv      # or json
+python3 .claude/swf-tools/usage.py report                   # every run, by phase and agent
+python3 .claude/swf-tools/usage.py report customer-portal   # one run
+python3 .claude/swf-tools/usage.py report --by track        # or phase | model | session | run
+python3 .claude/swf-tools/usage.py report --format csv      # or json
 ```
 
 ```
@@ -233,7 +236,7 @@ docs/
     .usage/<session>.json                 usage snapshots (SessionEnd hook; no agent reads them)
 ```
 
-Templates for every document are in [`.claude/sw-factory/templates/`](.claude/sw-factory/templates/).
+Templates for every document are in [`.claude/swf-tools/templates/`](.claude/swf-tools/templates/).
 
 ## Design notes
 
@@ -285,9 +288,9 @@ Templates for every document are in [`.claude/sw-factory/templates/`](.claude/sw
 
 ```
 .claude/
-  agents/
+  agents/swf/
     swf-manager.md   swf-po.md   swf-architect.md   swf-planner.md   swf-builder.md   swf-qa.md
-  sw-factory/
+  swf-tools/
     preflight.sh                    factory checks + TRACKS line
     usage.py                        token and cost report (for the human; agents never read it)
     hooks/guard.sh                  document ownership + spawn allowlist

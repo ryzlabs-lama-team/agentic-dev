@@ -56,7 +56,7 @@ Append this to the prompt of every `opsx-*` spawn:
 ```
 sw-factory: you cannot reach the swf-po or swf-architect yourself. If the change artifacts and the
 upstream documents above do not answer a question you need answered, follow
-.claude/sw-factory/protocols/clarification.md, "If you do not have the Agent tool".
+.claude/swf-tools/protocols/clarification.md, "If you do not have the Agent tool".
 Be concise. Work without commentary or progress narration. Your only output is your return
 payload, once you have results.
 ```

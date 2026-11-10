@@ -37,8 +37,8 @@ manifest_hash_for() {
 }
 
 LIST="$( {
-  for a in swf-manager swf-po swf-architect swf-planner swf-builder swf-qa; do printf '.claude/agents/%s.md\n' "$a"; done
-  find "$SRC/.claude/sw-factory" -type f ! -name '.DS_Store' | while IFS= read -r f; do printf '%s\n' "${f#"$SRC"/}"; done
+  for a in swf-manager swf-po swf-architect swf-planner swf-builder swf-qa; do printf '.claude/agents/swf/%s.md\n' "$a"; done
+  find "$SRC/.claude/swf-tools" -type f ! -name '.DS_Store' | while IFS= read -r f; do printf '%s\n' "${f#"$SRC"/}"; done
 } | LC_ALL=C sort)"
 
 PLAN_REL=() PLAN_CLASS=()
@@ -61,6 +61,27 @@ if [ "${#conflicts[@]}" -gt 0 ] && [ "$FORCE" -ne 1 ]; then
   exit 1
 fi
 
+# Earlier installs used .claude/agents/ (agents) and .claude/sw-factory/ (support tools). Remove
+# those copies when they are unmodified (identical to the source, or matching the old manifest); a
+# customized one is kept and reported, since two agents with the same name would conflict.
+for rel in "${PLAN_REL[@]}"; do
+  case "$rel" in
+    .claude/agents/swf/*) old=".claude/agents/${rel#.claude/agents/swf/}" ;;
+    .claude/swf-tools/*)  old=".claude/sw-factory/${rel#.claude/swf-tools/}" ;;
+    *) continue ;;
+  esac
+  [ -e "$DEST/$old" ] || continue
+  if cmp -s "$SRC/$rel" "$DEST/$old" \
+     || { [ "$HAVE_SHA" -eq 1 ] && recorded="$(manifest_hash_for "$old" || true)" && [ -n "$recorded" ] \
+          && [ "$recorded" = "$(sha256_of "$DEST/$old")" ]; }; then
+    rm "$DEST/$old"; echo "  removed  $old (moved to $rel)"
+  else
+    echo "warning: $old is customized and was left in place; move your changes into" >&2
+    echo "         $rel and delete it" >&2
+  fi
+done
+[ ! -d "$DEST/.claude/sw-factory" ] || find "$DEST/.claude/sw-factory" -depth -type d -empty -delete
+
 MANIFEST_BODY=''
 for i in "${!PLAN_REL[@]}"; do
   rel="${PLAN_REL[$i]}" class="${PLAN_CLASS[$i]}"
@@ -68,7 +89,7 @@ for i in "${!PLAN_REL[@]}"; do
   echo "  $class  $rel"
   [ "$HAVE_SHA" -eq 0 ] || MANIFEST_BODY+="$(sha256_of "$SRC/$rel")  $rel"$'\n'
 done
-chmod +x "$DEST/.claude/sw-factory/preflight.sh" "$DEST/.claude/sw-factory/hooks/guard.sh" "$DEST/.claude/sw-factory/usage.py"
+chmod +x "$DEST/.claude/swf-tools/preflight.sh" "$DEST/.claude/swf-tools/hooks/guard.sh" "$DEST/.claude/swf-tools/usage.py"
 if [ "$HAVE_SHA" -eq 1 ]; then printf '%s' "$MANIFEST_BODY" > "$MANIFEST"
 else echo 'warning: no SHA-256 utility found; manifest not written and differing files are treated as customized' >&2; fi
 
@@ -76,7 +97,7 @@ else echo 'warning: no SHA-256 utility found; manifest not written and differing
 if [ -e "$DEST/.sw-factory/config.yaml" ]; then
   echo "  kept  .sw-factory/config.yaml"
 else
-  mkdir -p "$DEST/.sw-factory"; cp "$SRC/.claude/sw-factory/templates/config.yaml" "$DEST/.sw-factory/config.yaml"
+  mkdir -p "$DEST/.sw-factory"; cp "$SRC/.claude/swf-tools/templates/config.yaml" "$DEST/.sw-factory/config.yaml"
   echo "  new  .sw-factory/config.yaml"
 fi
 
@@ -113,10 +134,18 @@ wire_hook() { # wire_hook <event> <marker> <entry> <label>: add <entry> unless <
     echo "         $3" >&2
   fi
 }
-wire_hook PreToolUse 'sw-factory/hooks/guard.sh' \
-  "$(hook_entry 'bash "${CLAUDE_PROJECT_DIR}/.claude/sw-factory/hooks/guard.sh"' 'Write|Edit|NotebookEdit|Agent|Task')" guard
-wire_hook SessionEnd 'sw-factory/usage.py' \
-  "$(hook_entry 'python3 "${CLAUDE_PROJECT_DIR}/.claude/sw-factory/usage.py" snapshot --hook >/dev/null 2>&1 || true')" 'usage snapshot'
+# Hooks wired by earlier installs point at .claude/sw-factory/; repoint them at .claude/swf-tools/.
+for s in "$SETTINGS" "$DEST/.claude/settings.local.json"; do
+  if grep -qs '\.claude/sw-factory/\(hooks/guard\.sh\|usage\.py\)' "$s"; then
+    sed -e 's#\.claude/sw-factory/hooks/guard\.sh#.claude/swf-tools/hooks/guard.sh#g' \
+        -e 's#\.claude/sw-factory/usage\.py#.claude/swf-tools/usage.py#g' "$s" > "$s.sw-factory.tmp" \
+      && mv "$s.sw-factory.tmp" "$s" && echo "  updated  ${s#"$DEST"/} (hooks moved to .claude/swf-tools/)"
+  fi
+done
+wire_hook PreToolUse 'swf-tools/hooks/guard.sh' \
+  "$(hook_entry 'bash "${CLAUDE_PROJECT_DIR}/.claude/swf-tools/hooks/guard.sh"' 'Write|Edit|NotebookEdit|Agent|Task')" guard
+wire_hook SessionEnd 'swf-tools/usage.py' \
+  "$(hook_entry 'python3 "${CLAUDE_PROJECT_DIR}/.claude/swf-tools/usage.py" snapshot --hook >/dev/null 2>&1 || true')" 'usage snapshot'
 
 if [ -d "$DEST/.git" ] && ! grep -qs '^\.sw-factory/runs' "$DEST/.gitignore"; then
   printf '\n# sw-factory run state\n.sw-factory/runs/\n' >> "$DEST/.gitignore"; echo '  .gitignore += .sw-factory/runs/'
@@ -124,4 +153,4 @@ fi
 
 echo
 echo "Installed into $DEST"
-echo "Next: cd $DEST && bash .claude/sw-factory/preflight.sh && claude --agent swf-manager"
+echo "Next: cd $DEST && bash .claude/swf-tools/preflight.sh && claude --agent swf-manager"

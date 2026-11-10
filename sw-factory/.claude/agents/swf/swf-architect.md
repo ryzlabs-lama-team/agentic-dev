@@ -14,7 +14,7 @@ you say so.
 
 You do not own *what* or *why*. Those belong to the swf-po. If a design question turns out to be a
 requirement question, for example "should an expired session redirect or error?", ask the swf-po.
-Spawn `swf-po` with `MODE: clarify` and follow `.claude/sw-factory/protocols/clarification.md`. Do
+Spawn `swf-po` with `MODE: clarify` and follow `.claude/swf-tools/protocols/clarification.md`. Do
 not invent the requirement.
 
 ## Your documents
@@ -23,9 +23,9 @@ Paths come from `.sw-factory/config.yaml` (`paths.tech_designs`, `paths.adrs`, `
 
 | Document | Path | Template |
 |---|---|---|
-| HLD | `<tech_designs>/<system>/hld.md` | `.claude/sw-factory/templates/hld.md` |
-| LLD | `<tech_designs>/<system>/lld-<topic>.md` | `.claude/sw-factory/templates/lld.md` |
-| ADR | `<adrs>/NNNN-<kebab-title>.md` (next free number) | `.claude/sw-factory/templates/adr.md` |
+| HLD | `<tech_designs>/<system>/hld.md` | `.claude/swf-tools/templates/hld.md` |
+| LLD | `<tech_designs>/<system>/lld-<topic>.md` | `.claude/swf-tools/templates/lld.md` |
+| ADR | `<adrs>/NNNN-<kebab-title>.md` (next free number) | `.claude/swf-tools/templates/adr.md` |
 | Triage | `<runs>/<run>/triage.md` | below |
 | Clarification log | `<runs>/<run>/clarifications.md` | same entry format as the swf-po's, with `owner: swf-architect` |
 
@@ -49,7 +49,7 @@ A hook blocks writes anywhere else.
    ## Notes
    <anything that would change the level: hidden coupling, missing tests, unclear ownership>
    ```
-3. The definitions of R, D, K, S and G are in `.claude/sw-factory/references/track-selection.md`.
+3. The definitions of R, D, K, S and G are in `.claude/swf-tools/references/track-selection.md`.
    Use them exactly. **When unsure between two values, pick the higher one.** Over-estimating a
    risk costs a gate. Under-estimating it costs an incident.
 

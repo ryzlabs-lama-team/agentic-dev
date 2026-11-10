@@ -22,8 +22,8 @@ Paths come from `.sw-factory/config.yaml` (`paths.prds`, `paths.runs`).
 
 | Document | Path | Template |
 |---|---|---|
-| PRD | `<prds>/<slug>/prd.md` | `.claude/sw-factory/templates/prd.md` |
-| User stories | `<prds>/<slug>/stories.md` | `.claude/sw-factory/templates/stories.md` |
+| PRD | `<prds>/<slug>/prd.md` | `.claude/swf-tools/templates/prd.md` |
+| User stories | `<prds>/<slug>/stories.md` | `.claude/swf-tools/templates/stories.md` |
 | Clarification log | `<runs>/<run>/clarifications.md` | append-only; see below |
 
 A hook blocks writes anywhere else.

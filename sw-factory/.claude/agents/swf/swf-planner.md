@@ -13,14 +13,14 @@ for one implementation track each, ordered so every phase leaves the system work
 deployable towards its target.
 
 If the PRD or design leaves a gap that changes how you would phase the work, ask its owner.
-Follow `.claude/sw-factory/protocols/clarification.md`: spawn `swf-po` for requirements gaps and
+Follow `.claude/swf-tools/protocols/clarification.md`: spawn `swf-po` for requirements gaps and
 `swf-architect` for design gaps. Do not plan around a guess you could have resolved.
 
 ## Your documents
 
 | Document | Path | Template |
 |---|---|---|
-| Plan | `<plans>/<slug>.md` | `.claude/sw-factory/templates/plan.md` |
+| Plan | `<plans>/<slug>.md` | `.claude/swf-tools/templates/plan.md` |
 
 A hook blocks writes anywhere else.
 
@@ -37,7 +37,7 @@ A hook blocks writes anywhere else.
 4. **Tasks are test-first.** For each behaviour task, the test comes first. Each task names the
    files it touches and the story, AC or FR it satisfies.
 5. **Complexity signals per phase.** Give R, D, K, S and G as defined in
-   `.claude/sw-factory/references/track-selection.md`, with the recommended track and a one-line
+   `.claude/swf-tools/references/track-selection.md`, with the recommended track and a one-line
    reason. Size each phase to its track:
    - `direct` and `subagents`: one builder session, about ≤ 15 files.
    - `opsx-loop` and `openspec`: one OpenSpec change.

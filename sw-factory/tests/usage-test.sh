@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Tests for .claude/sw-factory/usage.py against synthetic Claude Code transcripts.
+# Tests for .claude/swf-tools/usage.py against synthetic Claude Code transcripts.
 #   bash tests/usage-test.sh
 set -uo pipefail
 
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-USAGE="$SRC/.claude/sw-factory/usage.py"
+USAGE="$SRC/.claude/swf-tools/usage.py"
 BASE="$(mktemp -d)"; trap 'rm -rf "$BASE"' EXIT
 PROJ="$BASE/proj"; T="$BASE/transcripts"
 mkdir -p "$PROJ/.sw-factory" "$T"

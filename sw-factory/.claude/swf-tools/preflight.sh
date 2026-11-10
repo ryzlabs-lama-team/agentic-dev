@@ -13,18 +13,18 @@ echo "sw-factory preflight"
 
 missing=""
 for a in swf-manager swf-po swf-architect swf-planner swf-builder swf-qa; do
-  [ -f ".claude/agents/$a.md" ] || missing="$missing $a"
+  [ -f ".claude/agents/swf/$a.md" ] || missing="$missing $a"
 done
 [ -z "$missing" ] && ok "all 6 sw-factory agents installed" || bad "missing agents:$missing"
 
 for f in protocols/clarification.md references/track-selection.md hooks/guard.sh; do
-  [ -f ".claude/sw-factory/$f" ] || bad ".claude/sw-factory/$f missing — reinstall the sw-factory"
+  [ -f ".claude/swf-tools/$f" ] || bad ".claude/swf-tools/$f missing — reinstall the sw-factory"
 done
 
 CFG=.sw-factory/config.yaml
-if [ -f "$CFG" ]; then ok "$CFG present"; else bad "$CFG missing — copy .claude/sw-factory/templates/config.yaml there"; fi
+if [ -f "$CFG" ]; then ok "$CFG present"; else bad "$CFG missing — copy .claude/swf-tools/templates/config.yaml there"; fi
 
-if grep -qs 'sw-factory/hooks/guard.sh' .claude/settings.json .claude/settings.local.json; then
+if grep -qs 'swf-tools/hooks/guard.sh' .claude/settings.json .claude/settings.local.json; then
   ok "ownership guard wired as a PreToolUse hook"
 else
   warn "ownership guard not wired in .claude/settings.json — rerun install.sh; until then only swf-qa's drift check applies"

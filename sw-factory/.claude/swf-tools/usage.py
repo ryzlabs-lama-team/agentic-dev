@@ -3,10 +3,10 @@
 
 No agent reads or runs this file, so measuring a run adds nothing to any agent's context.
 
-  python3 .claude/sw-factory/usage.py report [<run-slug>] [--by agent|phase|track|model|session|run]
+  python3 .claude/swf-tools/usage.py report [<run-slug>] [--by agent|phase|track|model|session|run]
                                               [--format table|json|csv]
-  python3 .claude/sw-factory/usage.py snapshot
-  python3 .claude/sw-factory/usage.py snapshot --hook   # SessionEnd hook: JSON on stdin, silent
+  python3 .claude/swf-tools/usage.py snapshot
+  python3 .claude/swf-tools/usage.py snapshot --hook   # SessionEnd hook: JSON on stdin, silent
 
 Run it from the repository root, in a terminal of its own: `!` output inside a Claude session
 lands in that session's context. Both commands save one summary per factory session under
