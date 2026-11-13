@@ -163,6 +163,10 @@ approved_by: ~
 
 ### Exit criteria
 - [ ] Build passes
+- [ ] Docs updated for anything this phase changes, wrapped
+  onto a second line
+  - [ ] a nested checkbox is part of item 2, not an exit criterion
+- [ ] Coverage report written
 
 ---
 
@@ -192,7 +196,7 @@ t 0 "swf-cli 1."                "--version"                       --version
 t 2 ""                          "unknown group is a usage error"  nope
 
 # ------------------------------------------------------------------------------------------ plan
-t 0 "P1 tasks 0/2 · open: 1.1 1.2" "plan status P1"                plan status docs/plans/demo.md --phase P1
+t 0 "P1 tasks 0/2 · open: 1.1 1.2 · exit 0/3 · open exit: 1 2 3" "plan status P1" plan status docs/plans/demo.md --phase P1
 t 0 "P2 tasks 1/2 · open: 2.2"  "plan status ignores fenced tasks" plan status docs/plans/demo.md
 t 0 "TOTAL 1/4"                 "plan status total"               plan status docs/plans/demo.md
 t 2 "has no phase P9"           "plan status unknown phase"       plan status docs/plans/demo.md --phase P9
@@ -203,6 +207,17 @@ has docs/plans/demo.md '^- \[x\] \*\*1\.1\*\* do a' "task 1.1 ticked in the file
 has docs/plans/demo.md '^- \[ \] Build passes' "exit criteria untouched"
 t 0 "already ticked: 1.1"       "tick is idempotent"              plan tick docs/plans/demo.md P1 1.1 1.2
 t 0 "P1 tasks 2/2"              "tick reports the new count"      plan status docs/plans/demo.md --phase P1
+t 2 "give task ids, --exit"     "tick needs something to tick"    plan tick docs/plans/demo.md P1
+t 1 "unknown exit criteria in P1: 4" "tick unknown exit criterion" plan tick docs/plans/demo.md P1 --exit 2 4
+hasnt docs/plans/demo.md '^- \[x\] Docs updated' "unknown exit criterion ticks nothing"
+t 1 "P2 has no \"### Exit criteria\" items" "tick exit on a phase without any" plan tick docs/plans/demo.md P2 --exit all
+t 0 "ticked: exit 2"            "tick an exit criterion"          plan tick docs/plans/demo.md P1 --exit 2
+has docs/plans/demo.md '^- \[x\] Docs updated'                 "exit criterion 2 ticked in the file"
+has docs/plans/demo.md '^  - \[ \] a nested checkbox'           "nested checkbox untouched"
+has docs/plans/demo.md '^- \[ \] Build passes'                  "other exit criteria untouched"
+t 0 "exit 3/3"                  "tick --exit all reports the count" plan tick docs/plans/demo.md P1 --exit all
+t 0 "already ticked: 1.1, exit 2" "--exit is idempotent"            plan tick docs/plans/demo.md P1 1.1 --exit 2
+t 0 "P1 tasks 2/2 · all ticked · exit 3/3" "status after ticking exits" plan status docs/plans/demo.md --phase P1
 cp docs/plans/demo.md docs/notaplan.md
 t 2 "plan must be under docs/plans/" "tick outside the plans dir (config path read)" plan tick docs/notaplan.md P1 1.1
 rm docs/notaplan.md

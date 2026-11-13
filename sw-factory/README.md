@@ -186,7 +186,7 @@ exit code tells the agent what to do next:
 
 | Command | Does | Used by |
 |---|---|---|
-| `plan status · tick · phases · sync` | ticked/total per phase; tick only the named tasks; the Phase map in one line per phase; sync plan statuses from the ledger | builder, manager, planner |
+| `plan status · tick · phases · sync` | ticked/total tasks and exit criteria per phase; tick only the named tasks and exit criteria (`--exit <n…\|all>`, by position); the Phase map in one line per phase; sync plan statuses from the ledger | builder, manager, planner |
 | `ledger init · set · frame · log · doc · phase · decision · summary` | the run ledger: header from git + preflight, numbered Log rows, Documents rows from front matter, phase rows with the retry budget (`--retry`), a ≤ 15-line summary for resume | manager |
 | `doc meta · set · bump · decide · versions` | front-matter read/write that keeps comments; version bump + changelog row; decision-log row; versions changed since a ref | all owners, manager |
 | `id next adr · fr · nfr · us · q` | next free number, never reusing a retired id | swf-po, architect |

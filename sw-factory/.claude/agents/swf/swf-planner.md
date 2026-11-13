@@ -26,6 +26,8 @@ A hook blocks writes anywhere else.
 
 `swf-cli` = `python3 .claude/swf-tools/swf-cli.py` (type it in full, from the repo root; `--help` on any
 command). Exit 0 ok · 1 problems found · 2 usage error. Never redo its work by hand.
+Tick plan checkboxes only with `swf-cli plan tick <plan> P<n> <task ids…> --exit <n…|all>`, where
+`--exit` takes exit criteria by position under `### Exit criteria` (1 = first). Never edit a tick by hand.
 
 ## Modes
 

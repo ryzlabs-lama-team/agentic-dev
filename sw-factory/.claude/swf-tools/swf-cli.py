@@ -490,6 +490,36 @@ def phase_tasks(lines, start, end):
     return out
 
 
+EXIT = re.compile(r'^([-*]\s+\[)([ xX])(\].*)$')
+
+
+def phase_exits(lines, start, end):
+    """[(line index, number, done)] for the top-level checkbox items under the phase's
+    `### Exit criteria` heading, numbered from 1. Exit criteria have no ids; their position is
+    their id."""
+    mask = fence_mask(lines)
+    hs = [h for h in headings(lines) if start <= h[0] < end]
+    for k, (i, level, text) in enumerate(hs):
+        if re.match(r'(?i)^exit criteria$', text):
+            stop = next((j for j, lv, _ in hs[k + 1:] if lv <= level), end)
+            out = []
+            for n in range(i + 1, stop):
+                m = EXIT.match(lines[n])
+                if m and not mask[n]:
+                    out.append((n, len(out) + 1, m.group(2) != ' '))
+            return out
+    return []
+
+
+def exit_summary(exits):
+    """` · exit d/n · open exit: …` or '' when the phase has no exit criteria."""
+    if not exits:
+        return ''
+    open_n = [str(x[1]) for x in exits if not x[2]]
+    return ' · exit %d/%d%s' % (sum(1 for x in exits if x[2]), len(exits),
+                                ' · open exit: ' + ' '.join(open_n) if open_n else '')
+
+
 def load_plan(path):
     text = read(path)
     lines = text.splitlines()
@@ -517,7 +547,8 @@ def cmd_plan_status(a):
         done_all += done
         total_all += len(tasks)
         open_ids = [t[1] for t in tasks if not t[2]]
-        print('%s tasks %d/%d · %s' % (pid, done, len(tasks), 'open: ' + ' '.join(open_ids) if open_ids else 'all ticked'))
+        print('%s tasks %d/%d · %s%s' % (pid, done, len(tasks), 'open: ' + ' '.join(open_ids) if open_ids else 'all ticked',
+                                        exit_summary(phase_exits(lines, s, e))))
     if not a.phase:
         print('TOTAL %d/%d' % (done_all, total_all))
     return 0
@@ -527,12 +558,27 @@ def cmd_plan_tick(a):
     require_under(a.plan, [P('plans')], 'plan')
     text, lines, phases = load_plan(a.plan)
     s, e = get_phase(phases, a.phase, a.plan)
+    if not a.tasks and not a.exit:
+        raise Fail('give task ids, --exit <n…|all>, or both')
     tasks = {t[1]: t for t in phase_tasks(lines, s, e)}
     unknown = [t for t in a.tasks if t not in tasks]
     if unknown:
         print('unknown task ids in %s: %s (has: %s)' % (a.phase.upper(), ' '.join(unknown), ' '.join(tasks)))
         print('nothing ticked')
         return 1
+    exits = {str(x[1]): x for x in phase_exits(lines, s, e)}
+    want_exits = []
+    if a.exit:
+        if not exits:
+            print('%s has no "### Exit criteria" items' % a.phase.upper())
+            print('nothing ticked')
+            return 1
+        want_exits = list(exits) if a.exit == ['all'] else a.exit
+        bad = [n for n in want_exits if n not in exits]
+        if bad:
+            print('unknown exit criteria in %s: %s (has: 1-%d)' % (a.phase.upper(), ' '.join(bad), len(exits)))
+            print('nothing ticked')
+            return 1
     ticked, already = [], []
     for tid in a.tasks:
         i, _, done = tasks[tid]
@@ -541,11 +587,19 @@ def cmd_plan_tick(a):
             continue
         lines[i] = TASK.sub(lambda m: m.group(1) + 'x' + m.group(3) + m.group(4) + m.group(5), lines[i])
         ticked.append(tid)
+    for n in want_exits:
+        i, _, done = exits[n]
+        if done:
+            already.append('exit ' + n)
+            continue
+        lines[i] = EXIT.sub(lambda m: m.group(1) + 'x' + m.group(3), lines[i])
+        ticked.append('exit ' + n)
     if ticked:
         write(a.plan, to_text(lines, text))
     tasks = phase_tasks(lines, s, e)
-    print('ticked: %s%s' % (' '.join(ticked) or 'none', ' · already ticked: ' + ' '.join(already) if already else ''))
-    print('%s tasks %d/%d' % (a.phase.upper(), sum(1 for t in tasks if t[2]), len(tasks)))
+    print('ticked: %s%s' % (', '.join(ticked) or 'none', ' · already ticked: ' + ', '.join(already) if already else ''))
+    print('%s tasks %d/%d%s' % (a.phase.upper(), sum(1 for t in tasks if t[2]), len(tasks),
+                               exit_summary(phase_exits(lines, s, e))))
     return 0
 
 
@@ -1740,13 +1794,15 @@ def build_parser():
         return c
 
     g = group('plan', 'plan tasks and phase status')
-    c = cmd(g, 'status', cmd_plan_status, 'ticked/total tasks per phase, and the open task ids')
+    c = cmd(g, 'status', cmd_plan_status, 'ticked/total tasks and exit criteria per phase, and what is still open')
     c.add_argument('plan')
     c.add_argument('--phase')
-    c = cmd(g, 'tick', cmd_plan_tick, 'tick tasks in a phase (changes nothing else)')
+    c = cmd(g, 'tick', cmd_plan_tick, 'tick tasks and/or exit criteria in a phase (changes nothing else)')
     c.add_argument('plan')
     c.add_argument('phase')
-    c.add_argument('tasks', nargs='+')
+    c.add_argument('tasks', nargs='*', help='task ids, e.g. 1.1 1.2')
+    c.add_argument('--exit', nargs='+', metavar='N',
+                   help='exit criteria by position under "### Exit criteria" (1 = first), or "all"')
     c = cmd(g, 'phases', cmd_plan_phases, 'the Phase map as one line per phase')
     c.add_argument('plan')
     c = cmd(g, 'sync', cmd_plan_sync, 'sync the Phase map Status column and front-matter status from the ledger')

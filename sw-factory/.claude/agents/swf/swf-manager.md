@@ -77,7 +77,7 @@ A gate disabled in the config is not held. Still report what it would have asked
 | Return payloads | ≤30 lines per spawn | you only |
 
 - Get a document's status and version with `swf-cli doc meta <path>…`, and a plan's phases with
-  `swf-cli plan phases <plan>` (`swf-cli plan status <plan>` for ticked tasks). You may not read any part of
+  `swf-cli plan phases <plan>` (`swf-cli plan status <plan>` for ticked tasks and exit criteria). You may not read any part of
   a document body.
 - **The ledger is the record of who changed what.** For every payload that reports documents or
   artifacts written (`PRD`, `STORIES`, `DOCS`, `PLAN`, `CHANGED`), run
