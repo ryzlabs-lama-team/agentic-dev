@@ -247,14 +247,28 @@ def ranges(nums):
 
 # ======================================================================================= markdown
 
+FENCE_OPEN = re.compile(r'^ {0,3}(`{3,}|~{3,})(.*)$')
+
+
 def fence_mask(lines):
-    mask, inside = [], False
+    """True for lines inside (or delimiting) a fenced code block, per CommonMark: a fence is at
+    most 3 spaces indented; a backtick fence's info string has no backticks (so inline code such
+    as ```` ```ts ```` is not a fence); it closes on the same character, at least as long, with
+    nothing but whitespace after."""
+    mask, fence = [], None
     for line in lines:
-        if line.lstrip().startswith('```'):
-            mask.append(True)
-            inside = not inside
+        m = FENCE_OPEN.match(line)
+        if fence is None:
+            if m and not (m.group(1)[0] == '`' and '`' in m.group(2)):
+                fence = m.group(1)
+                mask.append(True)
+            else:
+                mask.append(False)
         else:
-            mask.append(inside)
+            mask.append(True)
+            if (m and m.group(1)[0] == fence[0] and len(m.group(1)) >= len(fence)
+                    and not m.group(2).strip()):
+                fence = None
     return mask
 
 

@@ -112,6 +112,9 @@ flowchart LR
   a --> b
 ```
 
+- Inline code that looks like a fence must not open one (doc bump must still find the Changelog):
+    ```` ```mermaid ```` block per diagram.
+
 ## 9. Traceability
 | Requirement | Satisfied by (section / component) |
 |---|---|
