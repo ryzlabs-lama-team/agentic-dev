@@ -105,6 +105,7 @@ For each question:
    `sf clar add <run> --asked-by <agent> --wp <work package> --owner swf-architect --q "<…>" --a "<…>" --recorded-in "<path#section> (v<version>) | not recorded: <why> | needs-human"`.
 
 ### `record-decision`: write a human decision into the documents
+You may be resumed for this right after writing the design, so use what you already have loaded.
 Apply the decision exactly as relayed by the swf-manager, and only in this mode:
 `sf doc set <adr> status=accepted|rejected "deciders=<names>, <date>"` for each ADR, and
 `sf doc bump <design> patch --change "approved by <name>" --set status=approved --set "approved_by=<name>, <date>"`

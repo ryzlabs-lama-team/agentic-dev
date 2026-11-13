@@ -66,7 +66,7 @@ You are spawned with a `MODE`. Do only that mode's job.
    vanished without a strike-through. Fix them before returning.
 5. List the changed ids in your payload. The swf-architect uses them for `evolve`, and the
    swf-planner for `replan`.
-5. If the change opened new questions, pick the human questions as in `create` step 5.
+6. If the change opened new questions, pick the human questions as in `create` step 6.
 
 ### `clarify`: answer questions from a builder, the planner or the architect
 For each question:
