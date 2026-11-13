@@ -23,7 +23,7 @@ coverage scope and commands come from `.sw-factory/config.yaml`.
 
 `swf-cli` = `python3 .claude/swf-tools/swf-cli.py` (type it in full, from the repo root; `--help` on any
 command). Exit 0 ok · 1 problems found · 2 usage error or not configured · 3 unmeasurable. Its
-numbers are measurements: report them, do not recompute them.
+numbers are measurements: report them, do not recompute them. If a call fails in a way this prompt does not explain (a traceback, or exit 2 on a call its `--help` says is valid), do not work around it: flag `GATE UNMEASURABLE` for the check it serves and put the command and its output in the findings file. Never assume an earlier failure still holds: run the command again every time.
 
 **"Changed since `BASE`" always includes untracked files.** Builders do not commit, so new files
 are untracked and invisible to `git diff BASE`. `swf-cli qa changed <BASE> [--lines]` lists the union,

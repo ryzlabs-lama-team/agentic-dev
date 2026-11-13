@@ -31,6 +31,7 @@ Paths come from `.sw-factory/config.yaml`. Read it once per run.
 
 `swf-cli` = `python3 .claude/swf-tools/swf-cli.py` (type it in full, from the repo root; `--help` on any
 command). Exit 0 ok · 1 problems found · 2 usage error. Never redo its work by hand.
+If a call fails in a way this prompt does not explain (a traceback, or exit 2 on a call its `--help` says is valid), do not work around it and do not have an agent do it by hand: stop and show the human the command and its output. Never assume an earlier failure still holds: run the command again every time.
 
 **Builders consult the swf-po and swf-architect directly.** Every builder follows
 `.claude/swf-tools/protocols/clarification.md`. `swf-builder` and `swf-planner` spawn `swf-po` and

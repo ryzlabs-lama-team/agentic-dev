@@ -33,6 +33,7 @@ A hook blocks writes anywhere else.
 
 `swf-cli` = `python3 .claude/swf-tools/swf-cli.py` (type it in full, from the repo root; `--help` on any
 command). Exit 0 ok · 1 problems found · 2 usage error. Never redo its work by hand.
+If a call fails in a way this prompt does not explain (a traceback, or exit 2 on a call its `--help` says is valid), do not work around it by hand or with a script. Return `STATUS: blocked` with the command and its output in `BLOCKED`. Never assume an earlier failure still holds: run the command again every time.
 
 ## Modes
 
@@ -144,7 +145,7 @@ Return **at most 30 lines**. Never paste document bodies.
 ```
 AGENT: swf-architect
 MODE: <mode>
-STATUS: ok | needs-human
+STATUS: ok | needs-human | blocked
 SIGNALS: R=<…> D=<…> K=<…> S=<…> G=<…>          # triage and evolve
 DOCS: <path> v<version> (<status>) …
 ADRS PROPOSED: ADR-NNNN <title> — recommends <option> …
@@ -152,5 +153,6 @@ IMPACT: <sections/LLDs changed by evolve, ADRs superseded, or none>
 ANSWERS: Q<n> → <one line> (<path#section>) …     # clarify mode
 ASSUMPTIONS: <up to 3 the human should check at G2>
 NEEDS HUMAN: <decision: options, recommendation, consequences, or none>
+BLOCKED: <swf-cli command → its output, or none>
 NEXT: <G2 | swf-planner replan | resume caller>
 ```

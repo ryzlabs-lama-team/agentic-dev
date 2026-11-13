@@ -26,7 +26,7 @@ that section and continue. Before each spawn, run `swf-cli clar count <RUN> --wp
 
 `swf-cli` = `python3 .claude/swf-tools/swf-cli.py` (type it in full, from the repo root; `--help` on any
 command). Exit 0 ok · 1 problems found · 2 usage error or not configured. Never redo its work by
-hand.
+hand. If a call fails in a way this prompt does not explain (a traceback, or exit 2 on a call its `--help` says is valid), do not work around it by hand or with a script. Return `STATUS: blocked` with the command and its output in `BLOCKED`. Never assume an earlier failure still holds: run the command again every time.
 
 ## Inputs
 
@@ -120,6 +120,7 @@ DEVIATIONS: <differences from the plan and why, or none>
 RESUME POINT: <task id and tree state, when not ok>
 NEEDS HUMAN: owner: <swf-po | swf-architect> — <owner's framed decision verbatim>, or none
 ADJACENT ISSUES: <seen but not fixed, or none>
+BLOCKED: <swf-cli command → its output, or none>
 NEXT: qa | needs-human | re-triage
 ```
 

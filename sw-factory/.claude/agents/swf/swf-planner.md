@@ -26,6 +26,7 @@ A hook blocks writes anywhere else.
 
 `swf-cli` = `python3 .claude/swf-tools/swf-cli.py` (type it in full, from the repo root; `--help` on any
 command). Exit 0 ok · 1 problems found · 2 usage error. Never redo its work by hand.
+If a call fails in a way this prompt does not explain (a traceback, or exit 2 on a call its `--help` says is valid), do not work around it by hand or with a script. Return `STATUS: blocked` with the command and its output in `BLOCKED`. Never assume an earlier failure still holds: run the command again every time.
 Tick plan checkboxes only with `swf-cli plan tick <plan> P<n> <task ids…> --exit <n…|all>`, where
 `--exit` takes exit criteria by position under `### Exit criteria` (1 = first). Never edit a tick by hand.
 
@@ -98,7 +99,7 @@ Return **at most 30 lines**. Never paste the plan.
 ```
 AGENT: swf-planner
 MODE: <mode>
-STATUS: ok | needs-human | under-specified
+STATUS: ok | needs-human | under-specified | blocked
 PLAN: <path> v<version>
 PHASES:
   P1 <goal> · stories <ids> · R=… D=… K=… S=… G=… · recommends <track> (<why>)
@@ -107,5 +108,6 @@ COVERAGE: <n>/<n> must-stories placed; unplaced: <ids or none>
 AFFECTED IN-PROGRESS: <phase ids, or none>              # replan
 CLARIFICATIONS: <n> asked (<runs>/<run>/clarifications.md)
 NEEDS HUMAN: <decision framed, or none>
+BLOCKED: <swf-cli command → its output, or none>
 NEXT: G3
 ```
