@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
-"""sf: deterministic bookkeeping for the sw-factory agents.
+"""swf-cli: deterministic bookkeeping for the sw-factory agents.
 
 Agents run this instead of doing mechanical work themselves: ticking plan tasks, keeping the run
 ledger, bumping document versions, numbering ADRs and clarifications, checking traceability,
 measuring changed-lines coverage, checking document drift, computing a work item's level, and
 running the gate commands. Run it from the repository root:
 
-  python3 .claude/swf-tools/sf.py <group> <command> …      (--help on any level)
+  python3 .claude/swf-tools/swf-cli.py <group> <command> …      (--help on any level)
 
 Output is terse `key: value` lines meant to be pasted into a return payload. It never prints a
 document body or a diff. Exit codes:
@@ -628,7 +628,7 @@ def get_header(lines, label):
 def load_ledger(slug):
     path = ledger_path(slug)
     if not os.path.exists(os.path.join(root(), path)):
-        raise Fail('no ledger for run %s (%s); run: sf.py ledger init' % (slug, path))
+        raise Fail('no ledger for run %s (%s); run: swf-cli.py ledger init' % (slug, path))
     text = read(path)
     return path, text, text.splitlines()
 
@@ -1709,9 +1709,9 @@ def cmd_gates_run(a):
 # =========================================================================================== main
 
 def build_parser():
-    p = argparse.ArgumentParser(prog='sf.py', description='sw-factory bookkeeping. Exit: 0 ok · 1 problems found · '
+    p = argparse.ArgumentParser(prog='swf-cli.py', description='sw-factory bookkeeping. Exit: 0 ok · 1 problems found · '
                                                           '2 usage/input error · 3 unmeasurable.')
-    p.add_argument('--version', action='version', version='sf ' + VERSION)
+    p.add_argument('--version', action='version', version='swf-cli ' + VERSION)
     sub = p.add_subparsers(dest='group', metavar='<group>')
     sub.required = True
 
@@ -1883,7 +1883,7 @@ def main(argv=None):
     try:
         return a.fn(a)
     except Fail as e:
-        print('sf: %s' % e, file=sys.stderr)
+        print('swf-cli: %s' % e, file=sys.stderr)
         return e.code
 
 

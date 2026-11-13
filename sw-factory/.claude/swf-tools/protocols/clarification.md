@@ -87,7 +87,7 @@ you with the answers and the updated document paths.
 ## Budget
 
 Ask at most **5 questions per work package**, across every spawn. Before asking, check the count
-with `python3 .claude/swf-tools/sf.py clar count <run> --wp <work package> --adding <n>`. If you
+with `python3 .claude/swf-tools/swf-cli.py clar count <run> --wp <work package> --adding <n>`. If you
 need more, it exits 1: the work package is under-specified. Stop and return
 `STATUS: under-specified` and list the gaps. The fix is an upstream document revision, not a
 longer conversation.

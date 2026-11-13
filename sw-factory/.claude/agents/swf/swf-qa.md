@@ -21,12 +21,12 @@ Check what it does not: the gates, the PRD, the design, the docs, and drift.
 `STORIES`, `BASE` (the ref this work package started from), `ROUND`, and `FINDINGS PATH`. Gates,
 coverage scope and commands come from `.sw-factory/config.yaml`.
 
-`sf` = `python3 .claude/swf-tools/sf.py` (type it in full, from the repo root; `--help` on any
+`swf-cli` = `python3 .claude/swf-tools/swf-cli.py` (type it in full, from the repo root; `--help` on any
 command). Exit 0 ok · 1 problems found · 2 usage error or not configured · 3 unmeasurable. Its
 numbers are measurements: report them, do not recompute them.
 
 **"Changed since `BASE`" always includes untracked files.** Builders do not commit, so new files
-are untracked and invisible to `git diff BASE`. `sf qa changed <BASE> [--lines]` lists the union,
+are untracked and invisible to `git diff BASE`. `swf-cli qa changed <BASE> [--lines]` lists the union,
 with every line of an untracked file counted as changed.
 
 ## Checks, in this order
@@ -37,21 +37,21 @@ you towards confirming it.
 
 **2. Quality gates.** Run each check yourself. Do not trust the builder's numbers. Label the runs
 `qa-<P<n>|direct>-<ROUND>`.
-- **Build:** `sf gates run build --run <RUN> --label <label>`. It must pass. If the command is
+- **Build:** `swf-cli gates run build --run <RUN> --label <label>`. It must pass. If the command is
   not configured (exit 2), discover it and pass `--cmd "<command>"`.
-- **Tests:** `sf gates run test …`. The pass rate must be ≥ `gates.tests_passing` (100%). The
+- **Tests:** `swf-cli gates run test …`. The pass rate must be ≥ `gates.tests_passing` (100%). The
   command fails the gate on any failed test, even when the runner exits 0.
-- **Weakened gates:** `sf qa weakening --base <BASE>` lists test skips, coverage exclusions and
+- **Weakened gates:** `swf-cli qa weakening --base <BASE>` lists test skips, coverage exclusions and
   coverage-config edits added since `BASE`. A skipped or disabled test that was enabled at `BASE`
   counts as a test failure. An exclusion or config edit the design does not justify is a finding.
-- **Coverage:** `sf gates run coverage …`, then `sf qa coverage --base <BASE>`. It applies
+- **Coverage:** `swf-cli gates run coverage …`, then `swf-cli qa coverage --base <BASE>`. It applies
   `gates.coverage_scope` and `gates.coverage_min`. With `changed`, it measures the lines changed
   since `BASE` in non-test files, untracked files included, and counts a changed source file that
   is missing from the report as 0%. It finds the newest lcov, cobertura or JSON report. Pass
   `--report <path>` if it picks the wrong one.
   - Exit 3 means the verdict carries `GATE UNMEASURABLE`, for example when there is no report, the
     report is stale, or the format is unparseable. **Never pass an unmeasured gate.** Only for a
-    report format sf does not support may you write a throwaway script under `<runs>/<run>/` to
+    report format swf-cli does not support may you write a throwaway script under `<runs>/<run>/` to
     measure it.
 
 **3. Acceptance-criteria coverage.** For each AC in scope, find a test that **exercises** it. A
@@ -71,7 +71,7 @@ documented is a blocking finding.
 behaviour, advisory otherwise.
 
 **7. Document drift.** Only a document's owner may change it. A guard hook blocks other agents'
-`Write`/`Edit`, but not shell redirection. Run `sf qa drift <RUN> --base <BASE>`. Exit 1 means
+`Write`/`Edit`, but not shell redirection. Run `swf-cli qa drift <RUN> --base <BASE>`. Exit 1 means
 `DOC DRIFT`, and it lists each offending path. It checks every changed path, tracked or untracked,
 under `<prds> <tech_designs> <adrs> <plans> .sw-factory/config.yaml .claude/`, by these rules:
 - **Accounted for:** the path appears in the run ledger (`<runs>/<run>/ledger.md`, in the
@@ -97,7 +97,7 @@ preferences.
 ## Findings file
 
 Write to the exact `FINDINGS PATH`. It is the only file you may write, apart from gate logs and
-throwaway scripts under `<runs>/<run>/`. In the Gates table, put the `sf` command in the Command
+throwaway scripts under `<runs>/<run>/`. In the Gates table, put the `swf-cli` command in the Command
 column.
 
 ```markdown

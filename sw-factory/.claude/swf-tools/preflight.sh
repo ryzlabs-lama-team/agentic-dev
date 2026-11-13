@@ -30,16 +30,16 @@ else
   warn "ownership guard not wired in .claude/settings.json — rerun install.sh; until then only swf-qa's drift check applies"
 fi
 if ! command -v python3 >/dev/null 2>&1; then
-  bad "python3 not on PATH — the agents' bookkeeping CLI (sf.py) needs it"
-elif v="$(python3 .claude/swf-tools/sf.py --version 2>&1)"; then
+  bad "python3 not on PATH — the agents' bookkeeping CLI (swf-cli.py) needs it"
+elif v="$(python3 .claude/swf-tools/swf-cli.py --version 2>&1)"; then
   ok "bookkeeping CLI runs ($v)"
 else
-  bad ".claude/swf-tools/sf.py does not run: $v"
+  bad ".claude/swf-tools/swf-cli.py does not run: $v"
 fi
-if grep -qsF 'Bash(python3 .claude/swf-tools/sf.py:*)' .claude/settings.json .claude/settings.local.json; then
-  ok "sf.py allowed in permissions"
+if grep -qsF 'Bash(python3 .claude/swf-tools/swf-cli.py:*)' .claude/settings.json .claude/settings.local.json; then
+  ok "swf-cli.py allowed in permissions"
 else
-  warn "sf.py not in permissions.allow — agents will stop at permission prompts; rerun install.sh"
+  warn "swf-cli.py not in permissions.allow — agents will stop at permission prompts; rerun install.sh"
 fi
 
 cfg_path() {

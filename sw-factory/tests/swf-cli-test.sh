@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Tests for .claude/swf-tools/sf.py against a throwaway git repository.
-#   bash tests/sf-test.sh
+# Tests for .claude/swf-tools/swf-cli.py against a throwaway git repository.
+#   bash tests/swf-cli-test.sh
 set -uo pipefail
 
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SF="$SRC/.claude/swf-tools/sf.py"
+SF="$SRC/.claude/swf-tools/swf-cli.py"
 command -v python3 >/dev/null 2>&1 || { echo 'SKIP  python3 not found'; exit 0; }
 command -v git >/dev/null 2>&1 || { echo 'SKIP  git not found'; exit 0; }
 BASE_DIR="$(mktemp -d)"; trap 'rm -rf "$BASE_DIR"' EXIT
@@ -12,7 +12,7 @@ PROJ="$BASE_DIR/proj"
 mkdir -p "$PROJ"
 
 pass=0 fail=0
-# t <want-exit> <want-substring or ""> <description> <sf args…>
+# t <want-exit> <want-substring or ""> <description> <swf-cli args…>
 t() {
   local want="$1" sub="$2" desc="$3" out code; shift 3
   out="$(cd "$PROJ" && python3 "$SF" "$@" 2>&1)"; code=$?
@@ -185,7 +185,7 @@ g add -A && g commit -qm base
 BASE="$(git -C "$PROJ" rev-parse HEAD)"
 
 # ----------------------------------------------------------------------------------------- misc
-t 0 "sf 1."                     "--version"                       --version
+t 0 "swf-cli 1."                "--version"                       --version
 t 2 ""                          "unknown group is a usage error"  nope
 
 # ------------------------------------------------------------------------------------------ plan
@@ -417,13 +417,13 @@ t 1 "coverage: not configured"  "all: unconfigured coverage reported" gates run 
 t 2 "--cmd overrides one gate"  "all with --cmd"                   gates run all --run demo --cmd x
 
 # ----------------------------------------------------------------------------------- prompt lint
-# Every `sf …` command written in the agent prompts, protocols, references and README must name a
+# Every `swf-cli …` command written in the agent prompts, protocols, references and README must name a
 # real group/command and only options that command accepts. The CLI is the single source of truth;
 # this catches a prompt left behind by a renamed command or flag.
 lint="$(python3 -I - "$SRC" <<'PY'
 import argparse, glob, importlib.util, os, re, sys
 src = sys.argv[1]
-spec = importlib.util.spec_from_file_location('sf', os.path.join(src, '.claude/swf-tools/sf.py'))
+spec = importlib.util.spec_from_file_location('sf', os.path.join(src, '.claude/swf-tools/swf-cli.py'))
 sf = importlib.util.module_from_spec(spec); spec.loader.exec_module(sf)
 top = sf.build_parser()
 
@@ -433,7 +433,7 @@ def subs(p):
 def options(p):
     return {o for a in p._actions for o in a.option_strings}
 
-PREFIX = re.compile(r'^(sf|python3 \.claude/swf-tools/sf\.py)(\s+|$)')
+PREFIX = re.compile(r'^(swf-cli|python3 \.claude/swf-tools/swf-cli\.py)(\s+|$)')
 FENCE = re.compile(r'```[^\n]*\n(.*?)```', re.S)
 files = sorted(glob.glob(src + '/.claude/agents/swf/*.md') + glob.glob(src + '/.claude/swf-tools/**/*.md', recursive=True)
                + [src + '/README.md'])
@@ -453,7 +453,7 @@ for f in files:
     for cmd in cmds:
         tokens = PREFIX.sub('', cmd, count=1).split()
         if not tokens:
-            continue                       # the bare definition: `sf` = `python3 …/sf.py`
+            continue                       # the bare definition: `swf-cli` = `python3 …/swf-cli.py`
         checked += 1
         p, path, err = top, [], None
         while subs(p) and tokens and not tokens[0].startswith('-'):
@@ -478,5 +478,5 @@ lint_n="$(sed -n 's/^CHECKED //p' <<<"$lint")"
 if [ "$lint_fail" -eq 0 ] && [ "${lint_n:-0}" -ge 40 ]; then pass=$((pass + 1))
 else fail=$((fail + 1)); printf 'FAIL  prompt lint (%s commands checked, expected ≥ 40)\n' "${lint_n:-0}"; grep '^FAIL' <<<"$lint" | sed 's/^/        /'; fi
 
-echo "sf: $pass passed, $fail failed"
+echo "swf-cli: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]

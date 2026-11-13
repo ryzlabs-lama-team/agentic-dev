@@ -171,7 +171,7 @@ and `--agent` sessions. In Claude Code 2.1.318 they did not fire in either mode.
 ## Scripted bookkeeping
 
 Work with exactly one right answer is not left to a model. The agents run
-[`sf.py`](.claude/swf-tools/sf.py), a stdlib-only Python CLI, through Bash. It handles ticking
+[`swf-cli.py`](.claude/swf-tools/swf-cli.py), a stdlib-only Python CLI, through Bash. It handles ticking
 tasks, keeping the ledger, bumping versions, numbering ids, checking traceability, measuring
 changed-lines coverage and checking drift. Each agent's prompt names the commands it uses. A
 command prints a few `key: value` lines for the agent's payload, never a document body, and its
@@ -197,14 +197,14 @@ exit code tells the agent what to do next:
 | `gates run build · test · coverage · lint · all` | runs `commands.*`, logs to `<runs>/<slug>/logs/`, prints one line per gate with parsed test counts | builder, swf-qa |
 
 ```sh
-python3 .claude/swf-tools/sf.py --help              # and <group> --help, <group> <command> --help
+python3 .claude/swf-tools/swf-cli.py --help              # and <group> --help, <group> <command> --help
 ```
 
-`install.sh` adds `Bash(python3 .claude/swf-tools/sf.py:*)` to `permissions.allow`, so agents
+`install.sh` adds `Bash(python3 .claude/swf-tools/swf-cli.py:*)` to `permissions.allow`, so agents
 never stop at a prompt. python3 is required, and the preflight fails without it. Ownership is
-unchanged: each agent runs `sf.py` only on the documents it owns. Bash writes bypass the guard
-hook, so swf-qa's drift check (itself `sf.py qa drift`) is still the backstop.
-`tests/sf-test.sh` covers every command (155 cases). It also lints the prompts: every `sf`
+unchanged: each agent runs `swf-cli.py` only on the documents it owns. Bash writes bypass the guard
+hook, so swf-qa's drift check (itself `swf-cli.py qa drift`) is still the backstop.
+`tests/swf-cli-test.sh` covers every command (156 cases). It also lints the prompts: every `swf-cli`
 command written in an agent, protocol, reference or this README must name a real command and
 only options it accepts. Each prompt carries only the commands its agent uses, inline in the step
 that needs them, and the CLI stays the single source of truth.
@@ -274,7 +274,7 @@ docs/
     triage.md                             swf-architect
     clarifications.md                     swf-po / swf-architect (one at a time)
     qa-<P<n>|direct>-<round>.md           swf-qa
-    logs/<label>-<gate>.log               full gate output (sf.py gates run)
+    logs/<label>-<gate>.log               full gate output (swf-cli.py gates run)
     .usage/<session>.json                 usage snapshots (SessionEnd hook; no agent reads them)
 ```
 
@@ -334,7 +334,7 @@ Templates for every document are in [`.claude/swf-tools/templates/`](.claude/swf
     swf-manager.md   swf-po.md   swf-architect.md   swf-planner.md   swf-builder.md   swf-qa.md
   swf-tools/
     preflight.sh                    factory checks + TRACKS line
-    sf.py                           bookkeeping CLI the agents run (ledger, plan, docs, QA, level, gates)
+    swf-cli.py                           bookkeeping CLI the agents run (ledger, plan, docs, QA, level, gates)
     usage.py                        token and cost report (for the human; agents never read it)
     hooks/guard.sh                  document ownership + spawn allowlist
     protocols/clarification.md      the builder ↔ swf-po / swf-architect contract
@@ -342,6 +342,6 @@ Templates for every document are in [`.claude/swf-tools/templates/`](.claude/swf
       track-selection.md            signals → level → track
       tracks/{direct,subagents,opsx-loop}.md   playbooks
     templates/                      prd, stories, hld, lld, adr, plan, ledger, config
-tests/guard-test.sh   tests/usage-test.sh   tests/sf-test.sh
+tests/guard-test.sh   tests/usage-test.sh   tests/swf-cli-test.sh
 install.sh
 ```

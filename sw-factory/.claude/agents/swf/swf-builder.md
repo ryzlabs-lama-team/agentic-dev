@@ -20,11 +20,11 @@ tests and docs that do exactly what those documents say.
   `swf-architect` with `MODE: clarify`.
 
 These are the only agents you may spawn. The answer comes back as an updated document. Re-read
-that section and continue. Before each spawn, run `sf clar count <RUN> --wp <P<n> or task>
+that section and continue. Before each spawn, run `swf-cli clar count <RUN> --wp <P<n> or task>
 --adding <questions>`. Exit 1 means the 5-question budget would be exceeded: return
 `STATUS: under-specified` instead of asking.
 
-`sf` = `python3 .claude/swf-tools/sf.py` (type it in full, from the repo root; `--help` on any
+`swf-cli` = `python3 .claude/swf-tools/swf-cli.py` (type it in full, from the repo root; `--help` on any
 command). Exit 0 ok · 1 problems found · 2 usage error or not configured. Never redo its work by
 hand.
 
@@ -54,19 +54,19 @@ You are given:
    Each acceptance criterion in scope must end up with at least one test that **exercises** it.
    A test that merely imports or constructs the code does not count.
 4. **Run the build and the tests after each task group.** Do not save testing for the end. Run
-   `sf gates run build --run <RUN> --label <P<n>>-<task>` and the same with `test`. They run
+   `swf-cli gates run build --run <RUN> --label <P<n>>-<task>` and the same with `test`. They run
    `commands.*` from the config, log the full output under `<runs>/<RUN>/logs/`, and print one
    line per gate, plus the log tail on failure. Read the log only when the tail is not enough. If
    a command is not configured (exit 2), discover it and pass it with `--cmd "<command>"`, then
    report what you used.
-5. **Tick your tasks** as you complete them with `sf plan tick <plan> P<n> <task ids…>`. Do not
+5. **Tick your tasks** as you complete them with `swf-cli plan tick <plan> P<n> <task ids…>`. Do not
    edit the plan yourself. The command changes only the tick marks, and the tick marks are durable
    state for a retry. A `direct` task has no plan, so skip this step.
 6. **Update the operational docs** for anything you change: how to build, run, test, deploy,
    configure and monitor. Use the repo's existing location for each. If none exists, use
    `<ops_docs>/` from the config. Undocumented config is a defect.
-7. **Before returning,** run `sf gates run test` and `sf gates run coverage` once (same `--run`,
-   label `<P<n>>-final`), then `sf plan status <plan> --phase P<n>` for the `TASKS` line. QA
+7. **Before returning,** run `swf-cli gates run test` and `swf-cli gates run coverage` once (same `--run`,
+   label `<P<n>>-final`), then `swf-cli plan status <plan> --phase P<n>` for the `TASKS` line. QA
    decides whether the gate is met. You report the numbers honestly.
 
 ### Retry rounds

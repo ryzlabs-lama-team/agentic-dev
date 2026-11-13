@@ -22,7 +22,7 @@ treats unlisted changes as drift.
 
 ## Phases
 Authoritative for phase status. swf-planner syncs the plan's Status column from this table.
-Retries counts QA retry rounds spent (budget 2); `sf.py ledger phase --retry` maintains it.
+Retries counts QA retry rounds spent (budget 2); `swf-cli.py ledger phase --retry` maintains it.
 
 | Phase | Level | Track | Status | Base ref | Retries | Notes |
 |---|---|---|---|---|---|---|

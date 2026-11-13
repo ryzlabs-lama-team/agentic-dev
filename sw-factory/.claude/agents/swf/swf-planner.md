@@ -24,7 +24,7 @@ Follow `.claude/swf-tools/protocols/clarification.md`: spawn `swf-po` for requir
 
 A hook blocks writes anywhere else.
 
-`sf` = `python3 .claude/swf-tools/sf.py` (type it in full, from the repo root; `--help` on any
+`swf-cli` = `python3 .claude/swf-tools/swf-cli.py` (type it in full, from the repo root; `--help` on any
 command). Exit 0 ok · 1 problems found · 2 usage error. Never redo its work by hand.
 
 ## Modes
@@ -47,7 +47,7 @@ command). Exit 0 ok · 1 problems found · 2 usage error. Never redo its work by
 
    Isolate a risky concern (migration, auth) in its own phase so it gets its own heavier track
    instead of dragging a whole phase up a level.
-6. **Check before returning:** `sf trace plan <plan> --stories <stories.md…>`. It checks that
+6. **Check before returning:** `swf-cli trace plan <plan> --stories <stories.md…>`. It checks that
    every `must` story is in exactly one phase and that every task names `files:` and `satisfies:`.
    Its `COVERAGE` line is your payload's. If it exits 1, fix the plan and run it again.
 
@@ -61,8 +61,8 @@ You are given the changed ids, the swf-architect's impact, and the run ledger pa
    Status column. Phases the ledger shows `done` are **immutable**. Changes to delivered
    behaviour become new phases.
 2. Update the phases that have not started. Re-derive their signals and recommended tracks. Then
-   run `sf doc bump <plan> minor --change "<what changed>" --trigger "PRD-<KEY> v<x>, HLD-<SYSTEM> v<y>"`,
-   which bumps the version and adds the changelog row, and run `sf trace plan` again.
+   run `swf-cli doc bump <plan> minor --change "<what changed>" --trigger "PRD-<KEY> v<x>, HLD-<SYSTEM> v<y>"`,
+   which bumps the version and adds the changelog row, and run `swf-cli trace plan` again.
 3. If an `in-progress` phase is affected, do not edit it. Report it so the swf-manager can stop
    and decide.
 
@@ -71,8 +71,8 @@ You are given the decision (for example "plan approved by <name>, <date>"), and 
 path. You may be resumed for this right after writing the plan, so use what you already have
 loaded.
 1. Apply the decision exactly. For an approval:
-   `sf doc bump <plan> patch --change "approved by <name>" --set status=approved --set "approved_by=<name>, <date>"`.
-2. Run `sf plan sync <plan> --ledger <ledger path>`. It syncs the Phase map's Status column and
+   `swf-cli doc bump <plan> patch --change "approved by <name>" --set status=approved --set "approved_by=<name>, <date>"`.
+2. Run `swf-cli plan sync <plan> --ledger <ledger path>`. It syncs the Phase map's Status column and
    the front-matter `status` (`in-progress` once any phase started, `done` when all are done) from
    the ledger's Phases table, which is authoritative. Change nothing else.
 
