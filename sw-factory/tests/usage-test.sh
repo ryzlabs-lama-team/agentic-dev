@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Tests for .claude/swf-tools/usage.py against synthetic Claude Code transcripts.
+# Tests for .claude/swf-tools/usage.py against synthetic Claude Code transcripts and a synthetic
+# OpenCode database.
 #   bash tests/usage-test.sh
 set -uo pipefail
 
@@ -8,6 +9,7 @@ USAGE="$SRC/.claude/swf-tools/usage.py"
 BASE="$(mktemp -d)"; trap 'rm -rf "$BASE"' EXIT
 PROJ="$BASE/proj"; T="$BASE/transcripts"
 mkdir -p "$PROJ/.sw-factory" "$T"
+export XDG_DATA_HOME="$BASE/xdg"   # never read the real OpenCode database
 printf 'paths:\n  runs: ".sw-factory/runs/"   # quoted, trailing slash\n' > "$PROJ/.sw-factory/config.yaml"
 command -v python3 >/dev/null 2>&1 || { echo 'SKIP  python3 not found'; exit 0; }
 
@@ -137,6 +139,107 @@ for _ in 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27
   [ -f "$PROJ/.sw-factory/runs/.usage/S2.json" ] && break; sleep 0.25
 done
 if [ -z "$out" ] && [ -f "$PROJ/.sw-factory/runs/.usage/S2.json" ]; then pass=$((pass + 1)); else fail=$((fail + 1)); echo 'FAIL  hook snapshots its session'; fi
+
+# ------------------------------------------------------------------------------------- OpenCode
+# R1: a swf-manager root session that spawns a builder (C1, which consults swf-po in C2) and an opsx
+# agent with no spawn link (C3), then switches run by writing run state through apply_patch. R2: an
+# ordinary session in the same repo. R3: a factory session in another repo.
+OCP="$BASE/ocproj"; DB="$BASE/opencode.db"
+mkdir -p "$OCP/.sw-factory"
+python3 -I - "$DB" "$OCP" "$BASE/elsewhere" <<'PY'
+import json, sqlite3, sys
+db, proj, other = sys.argv[1:]
+c = sqlite3.connect(db)
+c.executescript("""
+CREATE TABLE session (id text PRIMARY KEY, parent_id text, directory text NOT NULL, agent text,
+  version text NOT NULL, title text, time_created integer NOT NULL);
+CREATE TABLE message (id text PRIMARY KEY, session_id text NOT NULL, time_created integer NOT NULL, data text NOT NULL);
+CREATE TABLE part (id text PRIMARY KEY, message_id text NOT NULL, session_id text NOT NULL,
+  time_created integer NOT NULL, data text NOT NULL);
+""")
+OPUS, SONNET = 'claude-opus-9', 'claude-sonnet-9'
+n = [0]
+def nid(prefix):
+    n[0] += 1
+    return '%s%03d' % (prefix, n[0])
+def session(sid, parent, agent, t, directory=proj):
+    c.execute('INSERT INTO session VALUES (?,?,?,?,?,?,?)', (sid, parent, directory, agent, '1.99.0', sid, t))
+def user(sid, t, text):
+    mid = nid('msg')
+    c.execute('INSERT INTO message VALUES (?,?,?,?)', (mid, sid, t, json.dumps({'role': 'user', 'time': {'created': t}})))
+    c.execute('INSERT INTO part VALUES (?,?,?,?,?)', (nid('prt'), mid, sid, t, json.dumps({'type': 'text', 'text': text})))
+    return mid
+def asst(sid, t, agent, model, cost, i=0, o=0, reasoning=0, r=0, w=0, done=True, tools=()):
+    mid = nid('msg')
+    data = {'role': 'assistant', 'agent': agent, 'mode': agent, 'modelID': model, 'providerID': 'test', 'cost': cost,
+            'tokens': {'input': i, 'output': o, 'reasoning': reasoning, 'cache': {'read': r, 'write': w}},
+            'time': dict({'created': t}, **({'completed': t + 50} if done else {}))}
+    c.execute('INSERT INTO message VALUES (?,?,?,?)', (mid, sid, t, json.dumps(data)))
+    for tool, args, child in tools:
+        state = {'status': 'completed', 'input': args, 'time': {'start': t + 10, 'end': t + 20}}
+        if child:
+            state['metadata'] = {'sessionId': child}
+        c.execute('INSERT INTO part VALUES (?,?,?,?,?)', (nid('prt'), mid, sid, t + 10,
+                  json.dumps({'type': 'tool', 'tool': tool, 'callID': nid('call'), 'state': state})))
+builder_prompt = 'TRACK: subagents\nRUN: portal\nWORK PACKAGE: docs/plans/portal.md#P2\nSTORIES: US-1'
+session('R1', None, 'swf-manager', 1000)
+user('R1', 1000, 'run the portal')
+asst('R1', 1100, 'swf-manager', OPUS, 0.5, i=100, o=10, reasoning=5, r=1000, w=50,
+     tools=[('bash', {'command': 'python3 .opencode/swf-tools/swf-cli.py ledger init portal'}, None),
+            ('task', {'subagent_type': 'swf-builder', 'prompt': builder_prompt, 'description': 'd'}, 'C1')])
+session('C1', 'R1', 'swf-builder', 1150)
+user('C1', 1150, builder_prompt)
+asst('C1', 1200, 'swf-builder', SONNET, 0.2, i=2000, o=30, r=5,
+     tools=[('task', {'subagent_type': 'swf-po', 'prompt': 'MODE: clarify', 'description': 'd'}, 'C2'),
+            ('write', {'filePath': proj + '/src/a.ts'}, None)])
+asst('C1', 1400, 'swf-builder', SONNET, 0.05, i=10, o=3, done=False)
+session('C2', 'C1', 'swf-po', 1250)
+user('C2', 1250, 'MODE: clarify')
+asst('C2', 1300, 'swf-po', OPUS, 0.07, i=50, o=7)
+asst('C2', 1350, 'swf-po', 'free-model', 0.0, i=40, o=4)
+session('C3', 'R1', 'opsx-implementer', 1500)
+user('C3', 1500, 'Apply the change. Be concise.')
+asst('C3', 1550, 'opsx-implementer', SONNET, 0.03, i=30, o=3)
+asst('R1', 2000, 'swf-manager', OPUS, 0.0,   # the call's own message stays in the old run
+     tools=[('apply_patch', {'patchText': '*** Begin Patch\n*** Add File: .sw-factory/runs/other-run/ledger.md\n+x\n*** End Patch'}, None)])
+asst('R1', 3000, 'swf-manager', OPUS, 0.1, i=10, o=20)
+session('R2', None, 'build', 4000)
+user('R2', 4000, 'hello')
+asst('R2', 4100, 'build', OPUS, 9.0, i=99, o=99)
+session('R3', None, 'swf-manager', 5000, directory=other)
+user('R3', 5000, 'RUN: portal')
+asst('R3', 5100, 'swf-manager', OPUS, 7.0, i=99, o=99)
+c.commit()
+PY
+ocreport() { OUT="$BASE/out.json" ERR="$BASE/err.txt"; python3 -I "$USAGE" report --project "$OCP" --opencode-db "$DB" --format json "$@" > "$OUT" 2> "$ERR"; }
+
+ocreport --by session
+check 'oc: only factory sessions of this repo'     "{r['session'] for r in rows} == {'R1'}"
+check 'oc: exact cost, summed per message'          "abs(total['cost_usd'] - 0.95) < 1e-9 and not total['estimated']"
+check 'oc: subagent sessions counted as spawns'     "total['spawns'] == 3"
+
+ocreport --by agent
+check 'oc: builder run, phase, track from its prompt' "abs(row(agent='swf-builder', run='portal', phase='P2', track='subagents')[0]['cost_usd'] - 0.25) < 1e-9"
+check 'oc: nested swf-po inherits from the builder'   "row(agent='swf-po', run='portal', phase='P2', track='subagents')"
+check 'oc: unlinked opsx agent inherits main state'   "row(agent='opsx-implementer', run='portal', phase='P2')"
+check 'oc: main switches run at apply_patch path'     "abs(row(agent='swf-manager', run='other-run')[0]['cost_usd'] - 0.1) < 1e-9 and abs(row(agent='swf-manager', run='portal')[0]['cost_usd'] - 0.5) < 1e-9"
+check 'oc: output includes reasoning tokens'          "row(agent='swf-manager', run='portal')[0]['output'] == 15"
+check 'oc: cache tokens mapped'                       "row(agent='swf-manager', run='portal')[0]['cache_read'] == 1000 and row(agent='swf-manager', run='portal')[0]['cache_write'] == 50"
+check 'oc: peak context of the builder'               "row(agent='swf-builder')[0]['peak_context'] == 2005"
+
+ocreport --by model
+check 'oc: a model without a price is unpriced'       "row(model='free-model')[0]['unpriced'] and not row(model='claude-opus-9', run='portal')[0]['unpriced']"
+
+ocreport --runtime claude --transcripts "$BASE/none"
+grep -q 'No sw-factory usage' "$ERR" && pass=$((pass + 1)) || { fail=$((fail + 1)); echo 'FAIL  oc: --runtime claude ignores OpenCode sessions'; }
+
+[ -f "$OCP/.sw-factory/runs/.usage/R1.json" ] && pass=$((pass + 1)) || { fail=$((fail + 1)); echo 'FAIL  oc: snapshot written'; }
+mv "$DB" "$DB.gone"
+ocreport --by session
+check 'oc: removed database still reported from snapshot' "abs(total['cost_usd'] - 0.95) < 1e-9"
+printf 'not a database' > "$DB"
+ocreport --by session
+check 'oc: unreadable database is reported, not fatal' "'could not read the OpenCode database' in err and {r['session'] for r in rows} == {'R1'}"
 
 echo "usage.py: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]

@@ -47,8 +47,7 @@ manifest_hash_for() {
 
 # The OpenCode tree ships only what differs by runtime: agents, the guard plugin, and the
 # .opencode/swf-tools/ files whose text names runtime paths or tools. Every other support file
-# (swf-cli.py, guard.sh, templates, …) is runtime-neutral and installed from .claude/swf-tools/.
-# usage.py reads Claude Code transcripts, so it is Claude-only.
+# (swf-cli.py, guard.sh, usage.py, templates, …) is runtime-neutral and installed from .claude/swf-tools/.
 claude_list() {
   for a in swf-manager swf-po swf-architect swf-planner swf-builder swf-qa; do printf '.claude/agents/swf/%s.md\n' "$a"; done
   find "$SRC/.claude/swf-tools" -type f ! -name '.DS_Store' | while IFS= read -r f; do printf '%s\n' "${f#"$SRC"/}"; done
@@ -56,7 +55,7 @@ claude_list() {
 opencode_list() {
   for a in swf-manager swf-po swf-architect swf-planner swf-builder swf-builder-hard swf-qa; do printf '.opencode/agents/%s.md\n' "$a"; done
   printf '%s\n' .opencode/plugins/swf-guard.ts
-  { find "$SRC/.claude/swf-tools" -type f ! -name '.DS_Store' ! -name usage.py | while IFS= read -r f; do printf '.opencode/swf-tools/%s\n' "${f#"$SRC"/.claude/swf-tools/}"; done
+  { find "$SRC/.claude/swf-tools" -type f ! -name '.DS_Store' | while IFS= read -r f; do printf '.opencode/swf-tools/%s\n' "${f#"$SRC"/.claude/swf-tools/}"; done
     find "$SRC/.opencode/swf-tools" -type f ! -name '.DS_Store' | while IFS= read -r f; do printf '%s\n' "${f#"$SRC"/}"; done; } | LC_ALL=C sort -u
 }
 # src_of <rel>: the source file for an installed path (an OpenCode support file falls back to the shared copy).
@@ -127,7 +126,8 @@ if has claude; then
   [ "$HAVE_SHA" -eq 0 ] || printf '%s' "$CLAUDE_MANIFEST" > "$(manifest_for .claude/x)"
 fi
 if has opencode; then
-  chmod +x "$DEST/.opencode/swf-tools/preflight.sh" "$DEST/.opencode/swf-tools/hooks/guard.sh" "$DEST/.opencode/swf-tools/swf-cli.py"
+  chmod +x "$DEST/.opencode/swf-tools/preflight.sh" "$DEST/.opencode/swf-tools/hooks/guard.sh" \
+    "$DEST/.opencode/swf-tools/usage.py" "$DEST/.opencode/swf-tools/swf-cli.py"
   [ "$HAVE_SHA" -eq 0 ] || printf '%s' "$OPENCODE_MANIFEST" > "$(manifest_for .opencode/x)"
 fi
 [ "$HAVE_SHA" -eq 1 ] || echo 'warning: no SHA-256 utility found; manifest not written and differing files are treated as customized' >&2

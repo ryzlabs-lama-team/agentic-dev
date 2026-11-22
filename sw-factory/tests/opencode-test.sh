@@ -51,7 +51,7 @@ check "opencode: shared swf-cli.py is the .claude copy" cmp -s "$SRC/.claude/swf
 check "opencode: shared guard.sh is the .claude copy"   cmp -s "$SRC/.claude/swf-tools/hooks/guard.sh" "$R/.opencode/swf-tools/hooks/guard.sh"
 check "opencode: protocol is the OpenCode overlay"   cmp -s "$SRC/.opencode/swf-tools/protocols/clarification.md" "$R/.opencode/swf-tools/protocols/clarification.md"
 check "opencode: preflight is the OpenCode overlay"  cmp -s "$SRC/.opencode/swf-tools/preflight.sh" "$R/.opencode/swf-tools/preflight.sh"
-check "opencode: usage.py is Claude-only"            test ! -e "$R/.opencode/swf-tools/usage.py"
+check "opencode: shared usage.py is the .claude copy" cmp -s "$SRC/.claude/swf-tools/usage.py" "$R/.opencode/swf-tools/usage.py"
 check "opencode: no .claude tree"                    test ! -e "$R/.claude"
 check "opencode: no opencode.json written"           bash -c "! ls '$R'/opencode.json* 2>/dev/null"
 check "opencode: config created"                     test -f "$R/.sw-factory/config.yaml"

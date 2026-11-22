@@ -1,21 +1,27 @@
 #!/usr/bin/env python3
-"""Token and cost report for sw-factory runs, read from Claude Code's own session transcripts.
+"""Token and cost report for sw-factory runs, read from the runtime's own session records:
+Claude Code's transcripts and OpenCode's session database.
 
 No agent reads or runs this file, so measuring a run adds nothing to any agent's context.
 
-  python3 .claude/swf-tools/usage.py report [<run-slug>] [--by agent|phase|track|model|session|run]
-                                              [--format table|json|csv]
-  python3 .claude/swf-tools/usage.py snapshot
-  python3 .claude/swf-tools/usage.py snapshot --hook   # SessionEnd hook: JSON on stdin, silent
+  python3 <tools>/usage.py report [<run-slug>] [--by agent|phase|track|model|session|run]
+                                  [--format table|json|csv] [--runtime auto|claude|opencode]
+  python3 <tools>/usage.py snapshot
+  python3 <tools>/usage.py snapshot --hook   # Claude Code SessionEnd hook: JSON on stdin, silent
 
-Run it from the repository root, in a terminal of its own: `!` output inside a Claude session
-lands in that session's context. Both commands save one summary per factory session under
-<runs>/.usage/, so a report still works after Claude Code has deleted old transcripts.
+<tools> is .claude/swf-tools or .opencode/swf-tools; both copies read both runtimes. Run it from the
+repository root, in a terminal of its own: output inside an agent session lands in its context.
+Both commands save one summary per factory session under <runs>/.usage/, so a report still works
+after the runtime has deleted old sessions.
 
-Cost: when a session ends, Claude Code records its own cost per model (subagents included). That
-figure is split across the session's agents by weighted tokens, so totals match Claude Code.
-Usage after the last recorded cost (a session still open) is priced at the per-model rate
-observed in ended sessions and marked "~".
+Cost, Claude Code: when a session ends, Claude Code records its own cost per model (subagents
+included). That figure is split across the session's agents by weighted tokens, so totals match
+Claude Code. Usage after the last recorded cost (a session still open) is priced at the per-model
+rate observed in ended sessions and marked "~".
+
+Cost, OpenCode: every assistant message carries the cost OpenCode computed from its model price
+list, so each agent's cost is summed exactly. For subscription providers (GitHub Copilot) that is
+an API-equivalent figure, not what is billed.
 """
 import argparse
 import csv
@@ -23,11 +29,14 @@ import glob
 import json
 import os
 import re
+import sqlite3
 import sys
 import time
+import urllib.parse
+from datetime import datetime, timezone
 
-FACTORY = ('swf-manager', 'swf-po', 'swf-architect', 'swf-planner', 'swf-builder', 'swf-qa')
-AGENT_ORDER = ('swf-manager', 'main', 'swf-po', 'swf-architect', 'swf-planner', 'swf-builder', 'swf-qa')
+FACTORY = ('swf-manager', 'swf-po', 'swf-architect', 'swf-planner', 'swf-builder', 'swf-builder-hard', 'swf-qa')
+AGENT_ORDER = ('swf-manager', 'main', 'swf-po', 'swf-architect', 'swf-planner', 'swf-builder', 'swf-builder-hard', 'swf-qa')
 # Price of each token kind relative to one uncached input token (Anthropic's price structure).
 # Only used to split Claude Code's own per-model cost between agents, and to derive rates.
 WEIGHT = {'input': 1.0, 'cache_write_5m': 1.25, 'cache_write_1h': 2.0, 'cache_read': 0.1, 'output': 5.0}
@@ -203,8 +212,9 @@ class Timeline:
                 self.spawn_pos[tool_id] = pos
                 fields = spawn_fields(args.get('prompt') or '')
                 self.signals.append((pos, {k: fields[k] for k in ('run', 'phase', 'track') if fields[k]}))
-            else:
-                target = args.get('command') if name == 'Bash' else (args.get('file_path') or args.get('notebook_path'))
+            else:  # a shell command, a written path, or (OpenCode) a patch naming the paths it writes
+                target = next((args[k] for k in ('command', 'file_path', 'notebook_path', 'patchText')
+                               if isinstance(args.get(k), str)), None)
                 found = path_re.findall(target) if isinstance(target, str) else []
                 if found:
                     self.signals.append((pos, {'run': found[-1]}))
@@ -351,14 +361,30 @@ def load_store(store):
     return out
 
 
-def collect(project, tdir, write):
-    """Parse every factory session in `tdir`, oldest first, and refresh its snapshot."""
+def collect(project, tdir, write, runtime='auto', db=None):
+    """Parse every factory session of the selected runtimes and refresh its snapshot."""
     runs = runs_dir(project)
     store = os.path.join(project, runs, '.usage')
     sessions = load_store(store)
-    if not tdir:
-        print('usage: no Claude Code transcripts found for %s (pass --transcripts DIR)' % project, file=sys.stderr)
-        return sessions
+    found = False
+    if runtime in ('auto', 'opencode'):
+        db = db or opencode_db_path()
+        found = collect_opencode(project, db, sessions, write, store)
+        if not found and runtime == 'opencode':
+            print('usage: no OpenCode database at %s (pass --opencode-db PATH)' % db, file=sys.stderr)
+    if runtime in ('auto', 'claude'):
+        if tdir:
+            collect_claude(tdir, runs, store, sessions, write)
+        elif runtime == 'claude':
+            print('usage: no Claude Code transcripts found for %s (pass --transcripts DIR)' % project, file=sys.stderr)
+        elif not found:
+            print('usage: no Claude Code transcripts or OpenCode database found for %s '
+                  '(pass --transcripts DIR or --opencode-db PATH)' % project, file=sys.stderr)
+    return sessions
+
+
+def collect_claude(tdir, runs, store, sessions, write):
+    """Parse every factory session in `tdir`, oldest first, and refresh its snapshot."""
     mains = glob.glob(os.path.join(glob.escape(tdir), '*.jsonl'))
     birth = lambda p: getattr(os.stat(p), 'st_birthtime', os.stat(p).st_mtime)
     seen = set()
@@ -375,7 +401,6 @@ def collect(project, tdir, write):
                   'not recognised (Claude Code %s)' % (summary['session'], summary['version'] or '?'), file=sys.stderr)
         elif write:
             save(store, summary)
-    return sessions
 
 
 def session_ended(path):
@@ -424,6 +449,236 @@ def hook():
             os._exit(0)
 
 
+# --------------------------------------------------------------------------------------- OpenCode
+# OpenCode keeps sessions in one SQLite database: `session` (parent_id links a subagent session to
+# the session that spawned it), `message` (JSON; an assistant message carries agent, model, tokens
+# and cost) and `part` (JSON; a `task` tool part names the child session it started). The schema is
+# internal to OpenCode, so it is opened read-only and any surprise is reported, never guessed at.
+
+def opencode_db_path():
+    data = os.environ.get('XDG_DATA_HOME') or os.path.join(os.path.expanduser('~'), '.local', 'share')
+    return os.path.join(data, 'opencode', 'opencode.db')
+
+
+def iso_ms(ms):
+    if not isinstance(ms, (int, float)) or ms <= 0:
+        return ''
+    return datetime.fromtimestamp(ms / 1000, timezone.utc).strftime('%Y-%m-%dT%H:%M:%S.') + '%03dZ' % (int(ms) % 1000)
+
+
+def oc_rows(con, sql, ids):
+    """Rows of `sql` (with one `{ids}` placeholder) for every id, in chunks under SQLite's variable limit."""
+    out = []
+    for i in range(0, len(ids), 500):
+        chunk = ids[i:i + 500]
+        out.extend(con.execute(sql.format(ids=','.join('?' * len(chunk))), chunk).fetchall())
+    return out
+
+
+def oc_json(text):
+    try:
+        value = json.loads(text)
+    except (TypeError, ValueError):
+        return {}
+    return value if isinstance(value, dict) else {}
+
+
+def oc_tool(part):
+    """A `tool` part → (pos, call id, Claude-style name, args) for Timeline, or None."""
+    state = part.get('state') or {}
+    args = state.get('input') if isinstance(state.get('input'), dict) else {}
+    pos = (state.get('time') or {}).get('start') or part['_pos']
+    tool = part.get('tool') or ''
+    if tool == 'task':
+        return (pos, part.get('callID'), 'Task', {'prompt': args.get('prompt') or '',
+                                                 'subagent_type': args.get('subagent_type')})
+    if tool in ('write', 'edit'):
+        return (pos, part.get('callID'), tool.capitalize(), {'file_path': args.get('filePath')})
+    if tool == 'apply_patch':
+        return (pos, part.get('callID'), 'Patch', {'patchText': args.get('patchText')})
+    if tool == 'bash':
+        return (pos, part.get('callID'), 'Bash', {'command': args.get('command')})
+    return (pos, part.get('callID'), tool, {})
+
+
+def oc_tokens(t):
+    t = t if isinstance(t, dict) else {}
+    cache = t.get('cache') if isinstance(t.get('cache'), dict) else {}
+    reasoning = t.get('reasoning') or 0
+    return {'input': t.get('input') or 0, 'cache_write_5m': cache.get('write') or 0, 'cache_write_1h': 0,
+            'cache_read': cache.get('read') or 0, 'output': (t.get('output') or 0) + reasoning,
+            'thinking': reasoning, 'calls': 1}
+
+
+def oc_project_roots(con, project):
+    """Root sessions started in the project (or below it), and every session's parent and agent."""
+    dirs = {os.path.abspath(project), os.path.realpath(project)}
+    sessions, roots = {}, []
+    for sid, parent, directory, agent, version, created in con.execute(
+            'SELECT id, parent_id, directory, agent, version, time_created FROM session'):
+        sessions[sid] = {'parent': parent, 'agent': agent, 'version': version, 'created': created or 0}
+        if not parent and directory and any(directory == d or directory.startswith(d + '/') for d in dirs):
+            roots.append(sid)
+    return sessions, sorted(roots, key=lambda s: sessions[s]['created'])
+
+
+def oc_analyse_tree(root, sessions, children, messages, parts, runs, db):
+    """One root session and its subagent sessions → a summary in the same shape as analyse_session."""
+    tree, stack = [], [root]
+    while stack:
+        sid = stack.pop()
+        tree.append(sid)
+        stack.extend(children.get(sid, ()))
+
+    tools = {sid: [t for t in (oc_tool(p) for p in parts.get(sid, ()) if p.get('type') == 'tool') if t]
+             for sid in tree}
+    timeline = Timeline(tools[root], runs)
+    agents_seen = {sessions[s]['agent'] for s in tree} | {m.get('agent') for s in tree for m in messages.get(s, ())}
+    if not (any(is_factory(a) for a in agents_seen) or timeline.first_run):
+        return None
+
+    spawned_by = {}  # child session → (parent session, position of its task call)
+    for sid in tree:
+        for p in parts.get(sid, ()):
+            if p.get('type') == 'tool' and p.get('tool') == 'task':
+                state = p.get('state') or {}
+                child = (state.get('metadata') or {}).get('sessionId')
+                if child:
+                    spawned_by[child] = (sid, (state.get('time') or {}).get('start') or p['_pos'])
+
+    def assistant(sid):
+        for m in messages.get(sid, ()):
+            if m.get('role') == 'assistant' and m.get('modelID'):
+                yield m
+
+    def msg_of(m):
+        created = (m.get('time') or {}).get('created') or m['_pos']
+        return {'pos': created, 'ts': iso_ms(created), 'model': m['modelID'], 'tok': oc_tokens(m.get('tokens')),
+                'cost': m.get('cost') if isinstance(m.get('cost'), (int, float)) else 0.0}
+
+    def add(rec, msg):
+        add_message(rec, msg, True)
+        rec['cost_exact'][msg['model']] = rec['cost_exact'].get(msg['model'], 0.0) + msg['cost']
+
+    def compactions(sid):
+        return sum(1 for p in parts.get(sid, ()) if p.get('type') == 'compaction')
+
+    records, parsed, open_calls = {}, 0, False
+    for m in assistant(root):
+        msg = msg_of(m)
+        agent = m.get('agent') or m.get('mode') or 'main'
+        run = timeline.at(msg['pos'])['run']
+        rec = records.setdefault(('main', agent, run), dict(new_record(root, 'main', agent, {'run': run}), cost_exact={}))
+        add(rec, msg)
+        parsed += 1
+        open_calls |= not (m.get('time') or {}).get('completed')
+    for pos, _, _, _ in tools[root]:
+        for (kind, agent, run), rec in records.items():
+            if run == timeline.at(pos)['run']:
+                rec['tool_uses'] += 1
+                break
+
+    resolved = {}
+
+    def prompt_of(sid):
+        first_user = next((m for m in messages.get(sid, ()) if m.get('role') == 'user'), None)
+        if not first_user:
+            return ''
+        return '\n'.join(p.get('text') or '' for p in parts.get(sid, ())
+                         if p.get('_message') == first_user['_id'] and p.get('type') == 'text')
+
+    def resolve(sid, hops=0):  # own spawn fields, else the spawning agent's, else the root session's state
+        if sid not in resolved:
+            own = spawn_fields(prompt_of(sid))
+            parent = sessions[sid]['parent']
+            if parent and parent != root and parent in sessions and hops < 16:
+                inherited = resolve(parent, hops + 1)
+            else:
+                pos = spawned_by.get(sid, (None, sessions[sid]['created']))[1]
+                inherited = timeline.at(pos, inclusive=True)
+            same_run = not own['run'] or own['run'] == inherited.get('run')
+            resolved[sid] = dict(own, run=own['run'] or inherited.get('run'),
+                                 **{k: own[k] or (inherited.get(k) if same_run else None) for k in ('phase', 'track')})
+        return resolved[sid]
+
+    def depth(sid):
+        d, cur = 0, sid
+        while sessions.get(cur, {}).get('parent') and d < 16:
+            d, cur = d + 1, sessions[cur]['parent']
+        return d
+
+    for sid in tree:
+        if sid == root:
+            continue
+        msgs = list(assistant(sid))
+        if not msgs:
+            continue
+        agent = sessions[sid]['agent'] or msgs[0].get('agent') or '(subagent)'
+        parent = sessions[sid]['parent']
+        rec = dict(new_record(root, sid, agent, resolve(sid), depth(sid), None if parent == root else parent),
+                   cost_exact={})
+        for m in msgs:
+            add(rec, msg_of(m))
+            open_calls |= not (m.get('time') or {}).get('completed')
+        parsed += len(msgs)
+        rec['tool_uses'], rec['compactions'] = len(tools[sid]), compactions(sid)
+        records[('sub', sid)] = rec
+    for (kind, *_), rec in records.items():
+        if kind == 'main':
+            rec['compactions'] = compactions(root)
+            break
+    return {'schema': SCHEMA, 'runtime': 'opencode', 'session': root, 'transcript': db,
+            'version': sessions[root]['version'], 'ended': not open_calls, 'cost_state': None,
+            'records': list(records.values()), 'parsed_messages': parsed}
+
+
+def collect_opencode(project, db, sessions_out, write, store):
+    """Parse every factory session tree of `project` in OpenCode's database into `sessions_out`."""
+    if not db or not os.path.isfile(db):
+        return False
+    runs = runs_dir(project)
+    try:
+        con = sqlite3.connect('file:%s?mode=ro' % urllib.parse.quote(os.path.abspath(db)), uri=True)
+        try:
+            sessions, roots = oc_project_roots(con, project)
+            if not roots:
+                return True
+            children = {}
+            for sid, s in sessions.items():
+                if s['parent']:
+                    children.setdefault(s['parent'], []).append(sid)
+            ids, stack = [], list(roots)
+            while stack:
+                sid = stack.pop()
+                ids.append(sid)
+                stack.extend(children.get(sid, ()))
+            messages, parts = {}, {}
+            for mid, sid, created, data in oc_rows(con, 'SELECT id, session_id, time_created, data FROM message '
+                                                        'WHERE session_id IN ({ids}) ORDER BY time_created, id', ids):
+                messages.setdefault(sid, []).append(dict(oc_json(data), _id=mid, _pos=created or 0))
+            for mid, sid, created, data in oc_rows(con, 'SELECT message_id, session_id, time_created, data FROM part '
+                                                        'WHERE session_id IN ({ids}) ORDER BY time_created, id', ids):
+                parts.setdefault(sid, []).append(dict(oc_json(data), _message=mid, _pos=created or 0))
+        finally:
+            con.close()
+    except sqlite3.Error as e:
+        print('usage: could not read the OpenCode database %s (%s); its schema may have changed' % (db, e),
+              file=sys.stderr)
+        return False
+    for root in roots:
+        summary = oc_analyse_tree(root, sessions, children, messages, parts, runs, db)
+        if summary is None:
+            continue
+        if summary['parsed_messages'] == 0:
+            print('usage: OpenCode session %s looks like a factory session but no usage parsed; database format '
+                  'not recognised (OpenCode %s)' % (root, summary['version'] or '?'), file=sys.stderr)
+            continue
+        sessions_out[root] = summary
+        if write:
+            save(store, summary)
+    return True
+
+
 # ----------------------------------------------------------------------------------------- report
 
 def priced(sessions):
@@ -438,7 +693,16 @@ def priced(sessions):
 
     records = []
     for s in sessions.values():
-        recs = [dict(r, cost={m: 0.0 for m in r['models']}, estimated=False, unpriced=False) for r in s['records']]
+        runtime = s.get('runtime') or 'claude'
+        if runtime == 'opencode':  # exact per-message costs; a model with tokens but no price is unpriced
+            for r in s['records']:
+                cost = {m: r.get('cost_exact', {}).get(m, 0.0) for m in r['models']}
+                unpriced = [m for m in cost if cost[m] == 0 and r['models'][m]['calls']]
+                records.append(dict(r, runtime=runtime, cost=cost, cost_usd=sum(cost.values()), estimated=False,
+                                    unpriced=bool(unpriced), unpriced_models=unpriced))
+            continue
+        recs = [dict(r, runtime=runtime, cost={m: 0.0 for m in r['models']}, estimated=False, unpriced=False)
+                for r in s['records']]
         cost_state = s.get('cost_state') or {}
         for model, c in cost_state.items():
             total = sum(r['models'][model]['units'] for r in recs if model in r['models'])
@@ -451,7 +715,7 @@ def priced(sessions):
                 extra = new_record(s['session'], 'overhead', '(claude-code)',
                                    {'run': owner['run'] if owner else UNATTRIBUTED, 'mode': 'auxiliary'})
                 extra['models'][model] = dict({k: 0 for k in KINDS}, units=0.0, units_tail=0.0)
-                recs.append(dict(extra, cost={model: c['cost_usd']}, estimated=False, unpriced=False))
+                recs.append(dict(extra, runtime=runtime, cost={model: c['cost_usd']}, estimated=False, unpriced=False))
         for r in recs:
             for model, slot in r['models'].items():
                 pending = slot['units_tail'] + (slot['units'] if model not in cost_state else 0.0)
@@ -461,6 +725,7 @@ def priced(sessions):
                         r['estimated'] = True
                     else:
                         r['unpriced'] = True
+                        r.setdefault('unpriced_models', []).append(model)
             r['cost_usd'] = sum(r['cost'].values())
         records.extend(recs)
     return records
@@ -508,7 +773,7 @@ def group(records, by):
             row['sessions'].add(r['session'])
             row['peak_context'] = max(row['peak_context'], r['peak_context'])
             row['estimated'] |= r['estimated']
-            row['unpriced'] |= r['unpriced']
+            row['unpriced'] |= (model in r.get('unpriced_models', ())) if slot else r['unpriced']
             for edge, pick in (('start', min), ('end', max)):
                 if r[edge]:
                     row[edge] = pick(row[edge] or r[edge], r[edge])
@@ -559,8 +824,9 @@ def print_table(rows, by, total):
 def report(args):
     project = os.path.abspath(args.project or os.environ.get('CLAUDE_PROJECT_DIR') or os.getcwd())
     write = os.path.isdir(os.path.join(project, '.sw-factory'))
-    sessions = collect(project, args.transcripts or transcripts_dir(project), write)
-    records = [r for r in priced(sessions) if not args.run or r['run'] == args.run]
+    sessions = collect(project, args.transcripts or transcripts_dir(project), write, args.runtime, args.opencode_db)
+    records = [r for r in priced(sessions) if (not args.run or r['run'] == args.run)
+               and args.runtime in ('auto', r['runtime'])]
     if not records:
         print('No sw-factory usage found%s.' % (' for run %s' % args.run if args.run else ''), file=sys.stderr)
         return 1
@@ -586,8 +852,12 @@ def report(args):
         print()
         print_table(rows, args.by, total)
         print()
-        print('Cost: Claude Code\'s own per-model figures, split by weighted tokens. ~ = includes usage priced at '
-              'the rate seen in ended sessions; ? = no rate known for that model yet.')
+        if any(r['runtime'] == 'claude' for r in records):
+            print('Cost (Claude Code): its own per-model figures, split by weighted tokens. ~ = includes usage priced '
+                  'at the rate seen in ended sessions; ? = no rate known for that model yet.')
+        if any(r['runtime'] == 'opencode' for r in records):
+            print('Cost (OpenCode): its per-message cost from its model price list; for subscription providers such '
+                  'as GitHub Copilot an API-equivalent, not a bill. ? = no price known for that model.')
     return 0
 
 
@@ -608,7 +878,10 @@ def main(argv=None):
     snap = sub.add_parser('snapshot', help='save a summary of every factory session under <runs>/.usage/')
     snap.add_argument('--hook', action='store_true', help='SessionEnd hook mode: hook JSON on stdin, silent, always exits 0')
     for p in (rep, snap):
+        p.add_argument('--runtime', choices=('auto', 'claude', 'opencode'), default='auto',
+                       help='which runtime\'s sessions to read (default: every runtime found)')
         p.add_argument('--transcripts', help='Claude Code transcript directory (default: derived from the project path)')
+        p.add_argument('--opencode-db', help='OpenCode database (default: $XDG_DATA_HOME/opencode/opencode.db)')
         p.add_argument('--project', help='repository root (default: $CLAUDE_PROJECT_DIR or the current directory)')
     args = ap.parse_args(argv)
     if args.cmd == 'report':
@@ -618,7 +891,9 @@ def main(argv=None):
         if not os.path.isdir(os.path.join(project, '.sw-factory')):
             print('usage: %s has no .sw-factory/; run from the repository root' % project, file=sys.stderr)
             return 1
-        print('%d factory session(s) saved' % len(collect(project, args.transcripts or transcripts_dir(project), True)))
+        found = collect(project, args.transcripts or transcripts_dir(project), True, args.runtime, args.opencode_db)
+        print('%d factory session(s) saved' % sum(1 for s in found.values()
+                                                  if args.runtime in ('auto', s.get('runtime') or 'claude')))
         return 0
     ap.print_help()
     return 1

@@ -231,7 +231,7 @@ gates, tracks, documents, CLI, ledger and payloads are the same. Only the runtim
 | Ownership guard | `PreToolUse` hook in `.claude/settings.json` → `guard.sh` | plugin `tool.execute.before` → the same `guard.sh`, for `write`, `edit`, every file of an `apply_patch`, and `task` |
 | opsx tracks | invoke the `opsx-loop` skill | follow `.opencode/agents/opsx-loop.md`'s procedure; round 2 uses `opsx-implementer-hard` |
 | swf-cli permission | `Bash(python3 .claude/swf-tools/swf-cli.py:*)` merged into settings | none needed (OpenCode allows bash by default) |
-| Usage report | `usage.py` + `SessionEnd` snapshot | not ported; use `opencode stats` |
+| Usage report | `usage.py` reads the transcripts; a `SessionEnd` hook snapshots each session | the same `usage.py` reads OpenCode's session database; `report` refreshes the snapshots (no hook needed: OpenCode does not expire sessions) |
 
 The plugin learns each session's agent from `chat.message` (falling back to the session record),
 and blocks a call by throwing the guard's message, which the agent sees as the tool error. Models
@@ -247,7 +247,7 @@ pinned model, so a bad id fails before the run, not at a spawn after a gate. The
 opsx-loop's OpenCode distribution (`openspec-agents/opsx-loop/install.sh --target opencode`) and
 `openspec init --tools opencode`.
 
-Support files that read the same in both runtimes (`swf-cli.py`, `guard.sh`, templates,
+Support files that read the same in both runtimes (`swf-cli.py`, `guard.sh`, `usage.py`, templates,
 `track-selection.md`) have one source, `.claude/swf-tools/`. The installer copies them into
 `.opencode/swf-tools/` and lays the OpenCode-specific files from this repo's `.opencode/swf-tools/`
 (preflight, clarification protocol, track playbooks) over them. The agent bodies are hand-maintained
@@ -260,8 +260,9 @@ and the plugin's hooks (77 cases; the plugin cases need node ≥ 23).
 ## Measuring consumption
 
 [`usage.py`](.claude/swf-tools/usage.py) reports what a run consumed: tokens, cost, API calls and
-peak context per agent, phase, track, model or session. It reads the transcripts Claude Code
-already writes for every session and subagent. No agent runs it, reads its output or knows it
+peak context per agent, phase, track, model or session. It reads what the runtime already records
+for every session and subagent: Claude Code's transcripts, and OpenCode's session database
+(`$XDG_DATA_HOME/opencode/opencode.db`, default `~/.local/share/opencode/`, opened read-only). No agent runs it, reads its output or knows it
 exists, so measuring adds nothing to any agent's context.
 
 ```sh
@@ -269,7 +270,11 @@ python3 .claude/swf-tools/usage.py report                   # every run, by phas
 python3 .claude/swf-tools/usage.py report customer-portal   # one run
 python3 .claude/swf-tools/usage.py report --by track        # or phase | model | session | run
 python3 .claude/swf-tools/usage.py report --format csv      # or json
+python3 .claude/swf-tools/usage.py report --runtime opencode # or claude; default: every runtime found
 ```
+
+On OpenCode, run the same commands from `.opencode/swf-tools/usage.py`. Either copy reads both
+runtimes, so a repository where both run gets one report.
 
 ```
 sw-factory usage · run customer-portal · 3 sessions (2 ended) · 2026-11-06 → 2026-11-07 · ~$14.82
@@ -295,16 +300,22 @@ the report into that session's context.
   The report splits that figure across the session's agents by weighted tokens, so its totals
   match Claude Code. Usage that has no recorded cost yet, such as a session still open, is priced
   at the rate seen in ended sessions and marked `~`.
+  On OpenCode, every assistant message carries the cost OpenCode computed from its model price
+  list, so each agent's cost is summed exactly, with no splitting. For subscription providers such
+  as GitHub Copilot that figure is an API-equivalent, not what you are billed. A model with no
+  price shows `?`.
 - **Snapshots.** The `SessionEnd` hook saves a summary of each factory session to
   `.sw-factory/runs/.usage/<session>.json`. It runs after the session's last turn, so its output
   reaches no model. It returns at once and does the parsing in a detached process. Reports read
   these summaries, so they keep working after Claude Code deletes old transcripts (30 days by
-  default, `cleanupPeriodDays`).
-- **Caveat.** The transcript format is internal to Claude Code and may change between versions.
-  If the report finds factory sessions it cannot parse, it says so on stderr rather than
-  reporting zero.
+  default, `cleanupPeriodDays`). On OpenCode, every `report` or `snapshot` refreshes them from the
+  database. OpenCode does not expire sessions, but a deleted session stays in the report this way.
+- **Caveat.** Claude Code's transcript format and OpenCode's database schema are internal and may
+  change between versions. If the report finds factory sessions it cannot parse, or cannot read
+  the database, it says so on stderr rather than reporting zero.
 
-`tests/usage-test.sh` covers parsing, attribution, cost splitting and the hook (21 cases).
+`tests/usage-test.sh` covers parsing, attribution, cost splitting and the hook for Claude Code, and
+the same for a synthetic OpenCode database (36 cases).
 
 ## Artifacts in the target repo
 
@@ -323,7 +334,7 @@ docs/
     clarifications.md                     swf-po / swf-architect (one at a time)
     qa-<P<n>|direct>-<round>.md           swf-qa
     logs/<label>-<gate>.log               full gate output (swf-cli.py gates run)
-    .usage/<session>.json                 usage snapshots (SessionEnd hook; no agent reads them)
+    .usage/<session>.json                 usage snapshots (usage.py; no agent reads them)
 ```
 
 Templates for every document are in [`.claude/swf-tools/templates/`](.claude/swf-tools/templates/).
@@ -370,8 +381,6 @@ Templates for every document are in [`.claude/swf-tools/templates/`](.claude/swf
 - **"opsx-loop with turbo option".** The notes do not define it, so no turbo mode was invented.
   The `openspec` track is the opposite: a supervised opsx-loop.
 - **GitHub Copilot port.** opsx-loop ships one. This toolkit runs on Claude Code and OpenCode.
-- **Usage report on OpenCode.** `usage.py` reads Claude Code transcripts. OpenCode keeps sessions in
-  its own database; `opencode stats` gives totals in the meantime.
 - **`docs/ards`** in the notes is read as `docs/adrs`. Change `paths.adrs` in the config if the
   typo was intended.
 
