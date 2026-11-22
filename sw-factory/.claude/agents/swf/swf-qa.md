@@ -73,13 +73,13 @@ behaviour, advisory otherwise.
 **7. Document drift.** Only a document's owner may change it. A guard hook blocks other agents'
 `Write`/`Edit`, but not shell redirection. Run `swf-cli qa drift <RUN> --base <BASE>`. Exit 1 means
 `DOC DRIFT`, and it lists each offending path. It checks every changed path, tracked or untracked,
-under `<prds> <tech_designs> <adrs> <plans> .sw-factory/config.yaml .claude/`, by these rules:
+under `<prds> <tech_designs> <adrs> <plans> .sw-factory/config.yaml .claude/ .opencode/`, by these rules:
 - **Accounted for:** the path appears in the run ledger (`<runs>/<run>/ledger.md`, in the
   Documents table or a Log row's artifact) or in a `Recorded in:` line of
   `<runs>/<run>/clarifications.md`. That makes it an owner's edit, so it is legitimate.
 - **Checkbox ticks only** (`- [ ]` → `- [x]`) in a plan: legitimate.
 - **Anything else** is `DOC DRIFT`.
-- **Any** change to `.sw-factory/config.yaml` or `.claude/**` is `DOC DRIFT`, because gates or
+- **Any** change to `.sw-factory/config.yaml`, `.claude/**` or `.opencode/**` is `DOC DRIFT`, because gates or
   guards were altered.
 
 `openspec/**` is out of scope here. On the opsx tracks, `opsx-verifier` reports spec drift.

@@ -1,7 +1,9 @@
 #!/usr/bin/env bash
-# PreToolUse guard for the sw-factory, wired once in .claude/settings.json for
-# Write|Edit|NotebookEdit|Agent|Task. It reads the calling agent from the hook input's
-# `agent_type` and enforces:
+# Ownership guard for the sw-factory. Claude Code runs it as a PreToolUse hook, wired once in
+# .claude/settings.json for Write|Edit|NotebookEdit|Agent|Task. OpenCode runs it from the
+# swf-guard plugin (.opencode/plugins/swf-guard.ts), which translates each write/edit/apply_patch/
+# task call into the same input. It reads the calling agent from the input's `agent_type` and
+# enforces:
 #   - document ownership: each factory agent writes only the documents it owns
 #   - consultation: builders may spawn only swf-po / swf-architect, the architect only swf-po
 # Calls from the plain main session or from non-factory agents are not governed.
@@ -11,7 +13,10 @@ set -uo pipefail
 set -f   # path patterns below must not glob against the filesystem
 
 INPUT="$(cat)"
-PROJECT="${CLAUDE_PROJECT_DIR:-$PWD}"
+PROJECT="${SWF_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-$PWD}}"
+# The protocol next to this copy of the guard: .claude/swf-tools/ or .opencode/swf-tools/.
+TOOLS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)"
+PROTOCOL="${TOOLS_DIR#"$PROJECT"/}/protocols/clarification.md"
 CFG="$PROJECT/.sw-factory/config.yaml"
 
 if command -v jq >/dev/null 2>&1; then PARSER=jq
@@ -43,6 +48,7 @@ ROLE="$(field .agent_type)"
 TOOL="$(field .tool_name)"
 case "$ROLE" in
   swf-manager|swf-po|swf-architect|swf-planner|swf-builder|swf-qa|opsx-*) ;;
+  swf-builder-hard) ROLE=swf-builder ;;   # OpenCode's retry-2 builder: same lane as swf-builder
   *) exit 0 ;;
 esac
 
@@ -66,7 +72,7 @@ case "$TOOL" in
     case "$ROLE" in
       swf-builder|swf-planner) allowed='swf-po swf-architect' ;;
       swf-architect)          allowed='swf-po' ;;
-      swf-manager)            exit 0 ;;   # restricted by its own `tools: Agent(...)` allowlist
+      swf-manager)            exit 0 ;;   # restricted by its own allowlist (tools: / permission.task)
       *)                     allowed='' ;;
     esac
     for a in $allowed; do [ "$type" = "$a" ] && exit 0; done
@@ -122,7 +128,7 @@ DESIGNS="$(cfg_path tech_designs docs/tech-designs)"
 ADRS="$(cfg_path adrs docs/adrs)"
 PLANS="$(cfg_path plans docs/plans)"
 RUNS="$(cfg_path runs .sw-factory/runs)"
-GUARDED='.sw-factory/config.yaml .claude/*'
+GUARDED='.sw-factory/config.yaml .claude/* .opencode/*'
 
 owner_of() {
   if matches "$1" "$PRDS/*"; then echo swf-po
@@ -132,7 +138,7 @@ owner_of() {
   else echo 'the human (via swf-manager)'; fi
 }
 deny() {
-  block "$ROLE may not write $rel; it is owned by $(owner_of "$rel"). Ask the owner (.claude/swf-tools/protocols/clarification.md) or report it in your return payload."
+  block "$ROLE may not write $rel; it is owned by $(owner_of "$rel"). Ask the owner ($PROTOCOL) or report it in your return payload."
 }
 
 case "$ROLE" in

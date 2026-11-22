@@ -1,18 +1,25 @@
 #!/usr/bin/env bash
-# Install the sw-factory (Claude Code) into a target repository.
-#   ./install.sh [--force] /path/to/repo
+# Install the sw-factory into a target repository, for Claude Code, OpenCode, or both.
+#   ./install.sh [--force] [--target claude|opencode|all] /path/to/repo
 set -euo pipefail
 
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-usage() { echo "usage: $0 [--force] /path/to/target-repo" >&2; }
-FORCE=0 DEST=''
+usage() { echo "usage: $0 [--force] [--target claude|opencode|all] /path/to/target-repo" >&2; }
+FORCE=0 DEST='' TARGET=''
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --force|-f) FORCE=1; shift ;;
+    --target)
+      [ -z "$TARGET" ] && [ -n "${2:-}" ] || { usage; exit 1; }
+      case "$2" in claude|opencode|all) TARGET="$2" ;; *) usage; exit 1 ;; esac
+      shift 2 ;;
     -*) usage; exit 1 ;;
     *) [ -z "$DEST" ] || { usage; exit 1; }; DEST="$1"; shift ;;
   esac
 done
+TARGET="${TARGET:-claude}"
+case "$TARGET" in claude) SELECTED=(claude) ;; opencode) SELECTED=(opencode) ;; all) SELECTED=(claude opencode) ;; esac
+has() { case " ${SELECTED[*]} " in *" $1 "*) return 0 ;; esac; return 1; }
 [ -n "$DEST" ] || { usage; exit 1; }
 [ -d "$DEST" ] || { echo "error: $DEST is not a directory" >&2; exit 1; }
 DEST="$(cd "$DEST" && pwd)"
@@ -25,9 +32,11 @@ if command -v sha256sum >/dev/null 2>&1; then HAVE_SHA=1; SHA256_CMD=(sha256sum)
 elif command -v shasum >/dev/null 2>&1; then HAVE_SHA=1; SHA256_CMD=(shasum -a 256); fi
 sha256_of() { "${SHA256_CMD[@]}" "$1" | awk '{print $1}'; }
 
-MANIFEST="$DEST/.claude/.sw-factory-install-manifest"
+# One manifest per distribution, each listing only its own files.
+manifest_for() { case "$1" in .opencode/*) echo "$DEST/.opencode/.sw-factory-install-manifest" ;; *) echo "$DEST/.claude/.sw-factory-install-manifest" ;; esac; }
 manifest_hash_for() {
-  local wanted="$1" line hash path
+  local wanted="$1" line hash path MANIFEST
+  MANIFEST="$(manifest_for "$1")"
   [ -f "$MANIFEST" ] || return 1
   while IFS= read -r line; do
     hash="${line%%  *}" path="${line#*  }"
@@ -36,16 +45,34 @@ manifest_hash_for() {
   return 1
 }
 
-LIST="$( {
+# The OpenCode tree ships only what differs by runtime: agents, the guard plugin, and the
+# .opencode/swf-tools/ files whose text names runtime paths or tools. Every other support file
+# (swf-cli.py, guard.sh, templates, …) is runtime-neutral and installed from .claude/swf-tools/.
+# usage.py reads Claude Code transcripts, so it is Claude-only.
+claude_list() {
   for a in swf-manager swf-po swf-architect swf-planner swf-builder swf-qa; do printf '.claude/agents/swf/%s.md\n' "$a"; done
   find "$SRC/.claude/swf-tools" -type f ! -name '.DS_Store' | while IFS= read -r f; do printf '%s\n' "${f#"$SRC"/}"; done
-} | LC_ALL=C sort)"
+}
+opencode_list() {
+  for a in swf-manager swf-po swf-architect swf-planner swf-builder swf-builder-hard swf-qa; do printf '.opencode/agents/%s.md\n' "$a"; done
+  printf '%s\n' .opencode/plugins/swf-guard.ts
+  { find "$SRC/.claude/swf-tools" -type f ! -name '.DS_Store' ! -name usage.py | while IFS= read -r f; do printf '.opencode/swf-tools/%s\n' "${f#"$SRC"/.claude/swf-tools/}"; done
+    find "$SRC/.opencode/swf-tools" -type f ! -name '.DS_Store' | while IFS= read -r f; do printf '%s\n' "${f#"$SRC"/}"; done; } | LC_ALL=C sort -u
+}
+# src_of <rel>: the source file for an installed path (an OpenCode support file falls back to the shared copy).
+src_of() {
+  case "$1" in
+    .opencode/swf-tools/*) [ -e "$SRC/$1" ] && printf '%s' "$SRC/$1" || printf '%s' "$SRC/.claude/swf-tools/${1#.opencode/swf-tools/}" ;;
+    *) printf '%s' "$SRC/$1" ;;
+  esac
+}
+LIST="$( { if has claude; then claude_list; fi; if has opencode; then opencode_list; fi; } | LC_ALL=C sort)"
 
 PLAN_REL=() PLAN_CLASS=()
 while IFS= read -r rel; do
   [ -n "$rel" ] || continue
   if [ ! -e "$DEST/$rel" ]; then class=new
-  elif cmp -s "$SRC/$rel" "$DEST/$rel"; then class=identical
+  elif cmp -s "$(src_of "$rel")" "$DEST/$rel"; then class=identical
   elif [ "$HAVE_SHA" -eq 1 ] && recorded="$(manifest_hash_for "$rel" || true)" && [ -n "$recorded" ] \
        && [ "$recorded" = "$(sha256_of "$DEST/$rel")" ]; then class=stale
   else class=customized; fi
@@ -66,6 +93,7 @@ fi
 # customized one is kept and reported, since two agents with the same name would conflict.
 for rel in "${PLAN_REL[@]}"; do
   case "$rel" in
+    .opencode/*) continue ;;
     .claude/agents/swf/*) old=".claude/agents/${rel#.claude/agents/swf/}" ;;
     .claude/swf-tools/*)  old=".claude/sw-factory/${rel#.claude/swf-tools/}" ;;
     *) continue ;;
@@ -82,17 +110,27 @@ for rel in "${PLAN_REL[@]}"; do
 done
 [ ! -d "$DEST/.claude/sw-factory" ] || find "$DEST/.claude/sw-factory" -depth -type d -empty -delete
 
-MANIFEST_BODY=''
+CLAUDE_MANIFEST='' OPENCODE_MANIFEST=''
 for i in "${!PLAN_REL[@]}"; do
-  rel="${PLAN_REL[$i]}" class="${PLAN_CLASS[$i]}"
-  [ "$class" = identical ] || { mkdir -p "$(dirname "$DEST/$rel")"; cp "$SRC/$rel" "$DEST/$rel"; }
+  rel="${PLAN_REL[$i]}" class="${PLAN_CLASS[$i]}" from="$(src_of "${PLAN_REL[$i]}")"
+  [ "$class" = identical ] || { mkdir -p "$(dirname "$DEST/$rel")"; cp "$from" "$DEST/$rel"; }
   echo "  $class  $rel"
-  [ "$HAVE_SHA" -eq 0 ] || MANIFEST_BODY+="$(sha256_of "$SRC/$rel")  $rel"$'\n'
+  [ "$HAVE_SHA" -eq 0 ] && continue
+  case "$rel" in
+    .opencode/*) OPENCODE_MANIFEST+="$(sha256_of "$from")  $rel"$'\n' ;;
+    *) CLAUDE_MANIFEST+="$(sha256_of "$from")  $rel"$'\n' ;;
+  esac
 done
-chmod +x "$DEST/.claude/swf-tools/preflight.sh" "$DEST/.claude/swf-tools/hooks/guard.sh" \
-  "$DEST/.claude/swf-tools/usage.py" "$DEST/.claude/swf-tools/swf-cli.py"
-if [ "$HAVE_SHA" -eq 1 ]; then printf '%s' "$MANIFEST_BODY" > "$MANIFEST"
-else echo 'warning: no SHA-256 utility found; manifest not written and differing files are treated as customized' >&2; fi
+if has claude; then
+  chmod +x "$DEST/.claude/swf-tools/preflight.sh" "$DEST/.claude/swf-tools/hooks/guard.sh" \
+    "$DEST/.claude/swf-tools/usage.py" "$DEST/.claude/swf-tools/swf-cli.py"
+  [ "$HAVE_SHA" -eq 0 ] || printf '%s' "$CLAUDE_MANIFEST" > "$(manifest_for .claude/x)"
+fi
+if has opencode; then
+  chmod +x "$DEST/.opencode/swf-tools/preflight.sh" "$DEST/.opencode/swf-tools/hooks/guard.sh" "$DEST/.opencode/swf-tools/swf-cli.py"
+  [ "$HAVE_SHA" -eq 0 ] || printf '%s' "$OPENCODE_MANIFEST" > "$(manifest_for .opencode/x)"
+fi
+[ "$HAVE_SHA" -eq 1 ] || echo 'warning: no SHA-256 utility found; manifest not written and differing files are treated as customized' >&2
 
 # The config is the user's from the first install on: create it once, never overwrite it.
 if [ -e "$DEST/.sw-factory/config.yaml" ]; then
@@ -101,6 +139,10 @@ else
   mkdir -p "$DEST/.sw-factory"; cp "$SRC/.claude/swf-tools/templates/config.yaml" "$DEST/.sw-factory/config.yaml"
   echo "  new  .sw-factory/config.yaml"
 fi
+
+# Claude Code settings: hooks and the swf-cli permission. OpenCode needs neither: its guard is the
+# plugin installed above, and its default permissions already allow the CLI.
+if has claude; then
 
 # Project hooks. Agent-frontmatter hooks did not fire in Claude Code 2.1.318, so both run from
 # settings: the ownership guard (PreToolUse, dispatching on the hook's agent_type) and the usage
@@ -175,10 +217,13 @@ wire_hook PreToolUse 'swf-tools/hooks/guard.sh' \
 wire_hook SessionEnd 'swf-tools/usage.py' \
   "$(hook_entry 'python3 "${CLAUDE_PROJECT_DIR}/.claude/swf-tools/usage.py" snapshot --hook >/dev/null 2>&1 || true')" 'usage snapshot'
 
+fi
+
 if [ -d "$DEST/.git" ] && ! grep -qs '^\.sw-factory/runs' "$DEST/.gitignore"; then
   printf '\n# sw-factory run state\n.sw-factory/runs/\n' >> "$DEST/.gitignore"; echo '  .gitignore += .sw-factory/runs/'
 fi
 
 echo
 echo "Installed into $DEST"
-echo "Next: cd $DEST && bash .claude/swf-tools/preflight.sh && claude --agent swf-manager"
+if has claude; then echo "Next: cd $DEST && bash .claude/swf-tools/preflight.sh && claude --agent swf-manager   (Claude Code)"; fi
+if has opencode; then echo "Next: cd $DEST && bash .opencode/swf-tools/preflight.sh && opencode --agent swf-manager   (OpenCode)"; fi

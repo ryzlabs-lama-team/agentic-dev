@@ -451,9 +451,10 @@ def subs(p):
 def options(p):
     return {o for a in p._actions for o in a.option_strings}
 
-PREFIX = re.compile(r'^(swf-cli|python3 \.claude/swf-tools/swf-cli\.py)(\s+|$)')
+PREFIX = re.compile(r'^(swf-cli|python3 \.(?:claude|opencode)/swf-tools/swf-cli\.py)(\s+|$)')
 FENCE = re.compile(r'```[^\n]*\n(.*?)```', re.S)
 files = sorted(glob.glob(src + '/.claude/agents/swf/*.md') + glob.glob(src + '/.claude/swf-tools/**/*.md', recursive=True)
+               + glob.glob(src + '/.opencode/agents/*.md') + glob.glob(src + '/.opencode/swf-tools/**/*.md', recursive=True)
                + [src + '/README.md'])
 checked = 0
 for f in files:
@@ -493,8 +494,8 @@ PY
 )"
 lint_fail="$(grep -c '^FAIL' <<<"$lint")"
 lint_n="$(sed -n 's/^CHECKED //p' <<<"$lint")"
-if [ "$lint_fail" -eq 0 ] && [ "${lint_n:-0}" -ge 40 ]; then pass=$((pass + 1))
-else fail=$((fail + 1)); printf 'FAIL  prompt lint (%s commands checked, expected ≥ 40)\n' "${lint_n:-0}"; grep '^FAIL' <<<"$lint" | sed 's/^/        /'; fi
+if [ "$lint_fail" -eq 0 ] && [ "${lint_n:-0}" -ge 80 ]; then pass=$((pass + 1))
+else fail=$((fail + 1)); printf 'FAIL  prompt lint (%s commands checked, expected ≥ 80)\n' "${lint_n:-0}"; grep '^FAIL' <<<"$lint" | sed 's/^/        /'; fi
 
 echo "swf-cli: $pass passed, $fail failed"
 [ "$fail" -eq 0 ]

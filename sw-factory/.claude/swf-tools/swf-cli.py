@@ -6,7 +6,8 @@ ledger, bumping document versions, numbering ADRs and clarifications, checking t
 measuring changed-lines coverage, checking document drift, computing a work item's level, and
 running the gate commands. Run it from the repository root:
 
-  python3 .claude/swf-tools/swf-cli.py <group> <command> …      (--help on any level)
+  python3 .claude/swf-tools/swf-cli.py <group> <command> …      (Claude Code)
+  python3 .opencode/swf-tools/swf-cli.py <group> <command> …    (OpenCode; --help on any level)
 
 Output is terse `key: value` lines meant to be pasted into a return payload. It never prints a
 document body or a diff. Exit codes:
@@ -1302,7 +1303,7 @@ def cmd_qa_changed(a):
 REPORT_NAMES = {'lcov.info': 'lcov', 'coverage.xml': 'cobertura', 'cobertura.xml': 'cobertura',
                 'cobertura-coverage.xml': 'cobertura', 'coverage.cobertura.xml': 'cobertura',
                 'coverage.json': 'json', 'coverage-final.json': 'json'}
-SKIP_DIRS = {'.git', 'node_modules', '.venv', 'venv', '.tox', '.mypy_cache', '__pycache__', '.sw-factory', '.claude'}
+SKIP_DIRS = {'.git', 'node_modules', '.venv', 'venv', '.tox', '.mypy_cache', '__pycache__', '.sw-factory', '.claude', '.opencode'}
 
 
 def find_reports():
@@ -1535,7 +1536,7 @@ def cmd_qa_drift(a):
     doc_roots = doc_dirs()
     drift, ok = [], 0
     for st, path in changed_files(a.base):
-        if path == '.sw-factory/config.yaml' or under(path, '.claude'):
+        if path == '.sw-factory/config.yaml' or under(path, '.claude', '.opencode'):
             drift.append('%s — gates or guards altered' % path)
         elif under(path, *doc_roots):
             if is_accounted(path):
@@ -1576,7 +1577,7 @@ def cmd_qa_weakening(a):
     excl = re.compile('|'.join(EXCLUDE_PATTERNS), re.I)
     found = []
     for st, path in changed_files(a.base):
-        if st == 'D' or path.endswith('.md') or under(path, '.claude', *doc_dirs()):
+        if st == 'D' or path.endswith('.md') or under(path, '.claude', '.opencode', *doc_dirs()):
             continue
         name = path.rsplit('/', 1)[-1]
         conf = any(fnmatch.fnmatch(name, g) for g in COV_CONFIG)

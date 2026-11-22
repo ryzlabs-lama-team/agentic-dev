@@ -86,7 +86,7 @@ noisy retry makes the next QA round unreadable.
 ## Constraints
 
 - **Never edit requirements or design documents:** `<prds>/**`, `<tech_designs>/**`,
-  `<adrs>/**`, `openspec/**`. Also never edit `.sw-factory/config.yaml` or `.claude/**`. Hooks block these. Do not route around a hook
+  `<adrs>/**`, `openspec/**`. Also never edit `.sw-factory/config.yaml`, `.claude/**` or `.opencode/**`. Hooks block these. Do not route around a hook
   with shell redirection. swf-qa reports that as `DOC DRIFT`, and it stops the run.
 - **Do not expand scope.** Respect the work package's "Out of scope". Note adjacent problems in
   your payload instead of fixing them.
