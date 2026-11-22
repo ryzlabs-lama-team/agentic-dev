@@ -6,8 +6,10 @@ ledger, bumping document versions, numbering ADRs and clarifications, checking t
 measuring changed-lines coverage, checking document drift, computing a work item's level, and
 running the gate commands. Run it from the repository root:
 
-  python3 .claude/swf-tools/swf-cli.py <group> <command> …      (Claude Code)
-  python3 .opencode/swf-tools/swf-cli.py <group> <command> …    (OpenCode; --help on any level)
+  python3 .sw-factory/tools/swf-cli.py <group> <command> …      (--help on any level)
+
+One copy serves Claude Code and OpenCode. The few runtime-specific files (the preflight, the
+protocol, the track playbooks) live in .claude/swf-tools/ or .opencode/swf-tools/; see runtime_dir().
 
 Output is terse `key: value` lines meant to be pasted into a return payload. It never prints a
 document body or a diff. Exit codes:
@@ -702,8 +704,30 @@ def load_ledger(slug):
     return path, text, text.splitlines()
 
 
+def runtime_dir():
+    """The running runtime's folder (.claude or .opencode), for its runtime-specific files.
+
+    SWF_RUNTIME is set by the OpenCode guard plugin; OPENCODE=1 and CLAUDECODE=1 are each runtime's
+    own marker (checked in that order: an OpenCode started from a Claude Code shell inherits
+    CLAUDECODE). Outside both, the one that is installed, Claude Code first.
+    """
+    env = os.environ.get('SWF_RUNTIME')
+    if env in ('claude', 'opencode'):
+        return '.' + env
+    if os.environ.get('OPENCODE') == '1':
+        return '.opencode'
+    if os.environ.get('CLAUDECODE') == '1':
+        return '.claude'
+    for d in ('.claude', '.opencode'):
+        if os.path.exists(os.path.join(root(), d, 'swf-tools', 'preflight.sh')):
+            return d
+    return '.claude'
+
+
 def tracks_line():
-    pre = os.path.join(HERE, 'preflight.sh')
+    pre = os.path.join(root(), runtime_dir(), 'swf-tools', 'preflight.sh')
+    if not os.path.exists(pre):
+        return 'unknown (no preflight at %s)' % os.path.relpath(pre, root())
     try:
         r = subprocess.run(['bash', pre], cwd=root(), stdout=subprocess.PIPE, stderr=subprocess.DEVNULL,
                            universal_newlines=True)
@@ -1536,7 +1560,7 @@ def cmd_qa_drift(a):
     doc_roots = doc_dirs()
     drift, ok = [], 0
     for st, path in changed_files(a.base):
-        if path == '.sw-factory/config.yaml' or under(path, '.claude', '.opencode'):
+        if path == '.sw-factory/config.yaml' or under(path, '.sw-factory/tools', '.claude', '.opencode'):
             drift.append('%s — gates or guards altered' % path)
         elif under(path, *doc_roots):
             if is_accounted(path):
@@ -1577,7 +1601,7 @@ def cmd_qa_weakening(a):
     excl = re.compile('|'.join(EXCLUDE_PATTERNS), re.I)
     found = []
     for st, path in changed_files(a.base):
-        if st == 'D' or path.endswith('.md') or under(path, '.claude', '.opencode', *doc_dirs()):
+        if st == 'D' or path.endswith('.md') or under(path, '.sw-factory/tools', '.claude', '.opencode', *doc_dirs()):
             continue
         name = path.rsplit('/', 1)[-1]
         conf = any(fnmatch.fnmatch(name, g) for g in COV_CONFIG)

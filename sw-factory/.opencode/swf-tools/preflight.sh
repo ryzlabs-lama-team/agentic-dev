@@ -18,12 +18,13 @@ for a in $AGENTS; do
 done
 [ -z "$missing" ] && ok "all 7 sw-factory agents installed" || bad "missing agents:$missing"
 
-for f in protocols/clarification.md references/track-selection.md hooks/guard.sh; do
-  [ -f ".opencode/swf-tools/$f" ] || bad ".opencode/swf-tools/$f missing — reinstall the sw-factory"
+for f in .opencode/swf-tools/protocols/clarification.md .sw-factory/tools/references/track-selection.md \
+         .sw-factory/tools/hooks/guard.sh .sw-factory/tools/swf-cli.py; do
+  [ -f "$f" ] || bad "$f missing — reinstall the sw-factory"
 done
 
 CFG=.sw-factory/config.yaml
-if [ -f "$CFG" ]; then ok "$CFG present"; else bad "$CFG missing — copy .opencode/swf-tools/templates/config.yaml there"; fi
+if [ -f "$CFG" ]; then ok "$CFG present"; else bad "$CFG missing — copy .sw-factory/tools/templates/config.yaml there"; fi
 
 # The plugin is both the ownership guard and what lets builders consult swf-po / swf-architect
 # (it raises subagent_depth), so the factory cannot run as designed without it.
@@ -34,10 +35,10 @@ else
 fi
 if ! command -v python3 >/dev/null 2>&1; then
   bad "python3 not on PATH — the agents' bookkeeping CLI (swf-cli.py) needs it"
-elif v="$(python3 .opencode/swf-tools/swf-cli.py --version 2>&1)"; then
+elif v="$(python3 .sw-factory/tools/swf-cli.py --version 2>&1)"; then
   ok "bookkeeping CLI runs ($v)"
 else
-  bad ".opencode/swf-tools/swf-cli.py does not run: $v"
+  bad ".sw-factory/tools/swf-cli.py does not run: $v"
 fi
 
 cfg_path() {

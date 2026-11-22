@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Tests for .claude/swf-tools/hooks/guard.sh (shared by the Claude Code hook and the OpenCode
+# Tests for .sw-factory/tools/hooks/guard.sh (shared by the Claude Code hook and the OpenCode
 # plugin) against a throwaway project.
 #   bash tests/guard-test.sh
 set -uo pipefail
 
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-GUARD="$SRC/.claude/swf-tools/hooks/guard.sh"
+GUARD="$SRC/.sw-factory/tools/hooks/guard.sh"
 BASE="$(mktemp -d)"; trap 'rm -rf "$BASE"' EXIT
 PROJ="$BASE/proj"; LINK="$BASE/link"
 mkdir -p "$PROJ/.sw-factory" "$PROJ/docs" && ln -s "$PROJ" "$LINK"
@@ -67,6 +67,8 @@ expect allow "outside the project is not governed"    <<< "$(write swf-po "/tmp/
 expect allow "plain main session is not governed"     <<< "$(write "" "$PROJ/docs/adrs/0001-db.md")"
 expect allow "non-factory agent is not governed"      <<< "$(write Explore "$PROJ/docs/adrs/0001-db.md")"
 expect allow "other tools are not governed"           <<< '{"tool_name":"Bash","agent_type":"swf-builder","tool_input":{"command":"ls"}}'
+expect block "builder edits the shared tools"          <<< "$(write swf-builder "$PROJ/.sw-factory/tools/swf-cli.py")"
+expect block "opsx-implementer edits a template"      <<< "$(write opsx-implementer "$PROJ/.sw-factory/tools/templates/prd.md")"
 expect block "builder edits the OpenCode tree"          <<< "$(write swf-builder "$PROJ/.opencode/plugins/swf-guard.ts")"
 expect block "opsx-implementer edits the OpenCode tree" <<< "$(write opsx-implementer "$PROJ/.opencode/agents/swf-qa.md")"
 expect allow "builder-hard writes code"               <<< "$(write swf-builder-hard "$PROJ/src/app.ts")"
@@ -82,6 +84,12 @@ swf_expect() { # same as expect, with SWF_PROJECT_DIR (OpenCode) instead of CLAU
 }
 swf_expect block "SWF_PROJECT_DIR: builder writes PRD"  <<< "$(write swf-builder "$PROJ/docs/requirements/auth/prd.md")"
 swf_expect allow "SWF_PROJECT_DIR: swf-po writes PRD"   <<< "$(write swf-po "$PROJ/docs/requirements/auth/prd.md")"
+
+# The block message names the running runtime's protocol.
+msg="$(write swf-builder "$PROJ/docs/adrs/0001-db.md" | env -u CLAUDE_PROJECT_DIR SWF_PROJECT_DIR="$PROJ" SWF_RUNTIME=opencode bash "$GUARD" 2>&1 >/dev/null)"
+case "$msg" in *".opencode/swf-tools/protocols/clarification.md"*) pass=$((pass + 1)) ;; *) fail=$((fail + 1)); echo "FAIL  OpenCode message names its protocol: $msg" ;; esac
+msg="$(write swf-builder "$PROJ/docs/adrs/0001-db.md" | CLAUDE_PROJECT_DIR="$PROJ" bash "$GUARD" 2>&1 >/dev/null)"
+case "$msg" in *".claude/swf-tools/protocols/clarification.md"*) pass=$((pass + 1)) ;; *) fail=$((fail + 1)); echo "FAIL  Claude message names its protocol: $msg" ;; esac
 
 # --- consultation -------------------------------------------------------------
 expect allow "builder consults swf-po"                    <<< "$(spawn swf-builder swf-po)"

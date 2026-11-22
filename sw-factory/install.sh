@@ -32,8 +32,14 @@ if command -v sha256sum >/dev/null 2>&1; then HAVE_SHA=1; SHA256_CMD=(sha256sum)
 elif command -v shasum >/dev/null 2>&1; then HAVE_SHA=1; SHA256_CMD=(shasum -a 256); fi
 sha256_of() { "${SHA256_CMD[@]}" "$1" | awk '{print $1}'; }
 
-# One manifest per distribution, each listing only its own files.
-manifest_for() { case "$1" in .opencode/*) echo "$DEST/.opencode/.sw-factory-install-manifest" ;; *) echo "$DEST/.claude/.sw-factory-install-manifest" ;; esac; }
+# One manifest per installed set, each listing only its own files.
+manifest_for() {
+  case "$1" in
+    .opencode/*)   echo "$DEST/.opencode/.sw-factory-install-manifest" ;;
+    .sw-factory/*) echo "$DEST/.sw-factory/.install-manifest" ;;
+    *)             echo "$DEST/.claude/.sw-factory-install-manifest" ;;
+  esac
+}
 manifest_hash_for() {
   local wanted="$1" line hash path MANIFEST
   MANIFEST="$(manifest_for "$1")"
@@ -45,33 +51,28 @@ manifest_hash_for() {
   return 1
 }
 
-# The OpenCode tree ships only what differs by runtime: agents, the guard plugin, and the
-# .opencode/swf-tools/ files whose text names runtime paths or tools. Every other support file
-# (swf-cli.py, guard.sh, usage.py, templates, …) is runtime-neutral and installed from .claude/swf-tools/.
+# Three sets. The shared tools (.sw-factory/tools/: swf-cli.py, guard.sh, usage.py, templates,
+# track-selection.md) work in both runtimes and are installed once, whatever the target. Each
+# runtime's own set holds only what differs: agents, and the swf-tools/ files that name runtime
+# tools or paths (preflight, clarification protocol, track playbooks); plus OpenCode's guard plugin.
+files_under() { find "$SRC/$1" -type f ! -name '.DS_Store' | while IFS= read -r f; do printf '%s\n' "${f#"$SRC"/}"; done; }
+shared_list() { files_under .sw-factory/tools; }
 claude_list() {
   for a in swf-manager swf-po swf-architect swf-planner swf-builder swf-qa; do printf '.claude/agents/swf/%s.md\n' "$a"; done
-  find "$SRC/.claude/swf-tools" -type f ! -name '.DS_Store' | while IFS= read -r f; do printf '%s\n' "${f#"$SRC"/}"; done
+  files_under .claude/swf-tools
 }
 opencode_list() {
   for a in swf-manager swf-po swf-architect swf-planner swf-builder swf-builder-hard swf-qa; do printf '.opencode/agents/%s.md\n' "$a"; done
   printf '%s\n' .opencode/plugins/swf-guard.ts
-  { find "$SRC/.claude/swf-tools" -type f ! -name '.DS_Store' | while IFS= read -r f; do printf '.opencode/swf-tools/%s\n' "${f#"$SRC"/.claude/swf-tools/}"; done
-    find "$SRC/.opencode/swf-tools" -type f ! -name '.DS_Store' | while IFS= read -r f; do printf '%s\n' "${f#"$SRC"/}"; done; } | LC_ALL=C sort -u
+  files_under .opencode/swf-tools
 }
-# src_of <rel>: the source file for an installed path (an OpenCode support file falls back to the shared copy).
-src_of() {
-  case "$1" in
-    .opencode/swf-tools/*) [ -e "$SRC/$1" ] && printf '%s' "$SRC/$1" || printf '%s' "$SRC/.claude/swf-tools/${1#.opencode/swf-tools/}" ;;
-    *) printf '%s' "$SRC/$1" ;;
-  esac
-}
-LIST="$( { if has claude; then claude_list; fi; if has opencode; then opencode_list; fi; } | LC_ALL=C sort)"
+LIST="$( { shared_list; if has claude; then claude_list; fi; if has opencode; then opencode_list; fi; } | LC_ALL=C sort)"
 
 PLAN_REL=() PLAN_CLASS=()
 while IFS= read -r rel; do
   [ -n "$rel" ] || continue
   if [ ! -e "$DEST/$rel" ]; then class=new
-  elif cmp -s "$(src_of "$rel")" "$DEST/$rel"; then class=identical
+  elif cmp -s "$SRC/$rel" "$DEST/$rel"; then class=identical
   elif [ "$HAVE_SHA" -eq 1 ] && recorded="$(manifest_hash_for "$rel" || true)" && [ -n "$recorded" ] \
        && [ "$recorded" = "$(sha256_of "$DEST/$rel")" ]; then class=stale
   else class=customized; fi
@@ -87,47 +88,59 @@ if [ "${#conflicts[@]}" -gt 0 ] && [ "$FORCE" -ne 1 ]; then
   exit 1
 fi
 
-# Earlier installs used .claude/agents/ (agents) and .claude/sw-factory/ (support tools). Remove
-# those copies when they are unmodified (identical to the source, or matching the old manifest); a
-# customized one is kept and reported, since two agents with the same name would conflict.
-for rel in "${PLAN_REL[@]}"; do
-  case "$rel" in
-    .opencode/*) continue ;;
-    .claude/agents/swf/*) old=".claude/agents/${rel#.claude/agents/swf/}" ;;
-    .claude/swf-tools/*)  old=".claude/sw-factory/${rel#.claude/swf-tools/}" ;;
-    *) continue ;;
+# Files that earlier installs kept elsewhere: agents in .claude/agents/, support tools in
+# .claude/sw-factory/, and the shared tools once copied into each runtime's swf-tools/. Remove a
+# copy when it is unmodified (identical to the source, or matching its old manifest); keep and
+# report a customized one. Only the runtimes being installed are cleaned, so an OpenCode install
+# never pulls files from under an older Claude Code install that still uses them.
+old_copies() { # old_copies <rel>: earlier locations of <rel>
+  case "$1" in
+    .claude/agents/swf/*) has claude && printf '%s\n' ".claude/agents/${1#.claude/agents/swf/}" ;;
+    .claude/swf-tools/*)  has claude && printf '%s\n' ".claude/sw-factory/${1#.claude/swf-tools/}" ;;
+    .sw-factory/tools/*)
+      if has claude; then printf '%s\n' ".claude/swf-tools/${1#.sw-factory/tools/}" ".claude/sw-factory/${1#.sw-factory/tools/}"; fi
+      if has opencode; then printf '%s\n' ".opencode/swf-tools/${1#.sw-factory/tools/}"; fi ;;
   esac
-  [ -e "$DEST/$old" ] || continue
-  if cmp -s "$SRC/$rel" "$DEST/$old" \
-     || { [ "$HAVE_SHA" -eq 1 ] && recorded="$(manifest_hash_for "$old" || true)" && [ -n "$recorded" ] \
-          && [ "$recorded" = "$(sha256_of "$DEST/$old")" ]; }; then
-    rm "$DEST/$old"; echo "  removed  $old (moved to $rel)"
-  else
-    echo "warning: $old is customized and was left in place; move your changes into" >&2
-    echo "         $rel and delete it" >&2
-  fi
+  return 0
+}
+for rel in "${PLAN_REL[@]}"; do
+  while IFS= read -r old; do
+    [ -n "$old" ] && [ -e "$DEST/$old" ] || continue
+    if cmp -s "$SRC/$rel" "$DEST/$old" \
+       || { [ "$HAVE_SHA" -eq 1 ] && recorded="$(manifest_hash_for "$old" || true)" && [ -n "$recorded" ] \
+            && [ "$recorded" = "$(sha256_of "$DEST/$old")" ]; }; then
+      rm "$DEST/$old"; echo "  removed  $old (moved to $rel)"
+    else
+      echo "warning: $old is customized and was left in place; move your changes into" >&2
+      echo "         $rel and delete it" >&2
+    fi
+  done <<< "$(old_copies "$rel")"
 done
-[ ! -d "$DEST/.claude/sw-factory" ] || find "$DEST/.claude/sw-factory" -depth -type d -empty -delete
+for d in .claude/sw-factory .claude/swf-tools .opencode/swf-tools; do
+  [ ! -d "$DEST/$d" ] || find "$DEST/$d" -depth -type d -empty -delete
+done
 
-CLAUDE_MANIFEST='' OPENCODE_MANIFEST=''
+SHARED_MANIFEST='' CLAUDE_MANIFEST='' OPENCODE_MANIFEST=''
 for i in "${!PLAN_REL[@]}"; do
-  rel="${PLAN_REL[$i]}" class="${PLAN_CLASS[$i]}" from="$(src_of "${PLAN_REL[$i]}")"
-  [ "$class" = identical ] || { mkdir -p "$(dirname "$DEST/$rel")"; cp "$from" "$DEST/$rel"; }
+  rel="${PLAN_REL[$i]}" class="${PLAN_CLASS[$i]}"
+  [ "$class" = identical ] || { mkdir -p "$(dirname "$DEST/$rel")"; cp "$SRC/$rel" "$DEST/$rel"; }
   echo "  $class  $rel"
   [ "$HAVE_SHA" -eq 0 ] && continue
+  entry="$(sha256_of "$SRC/$rel")  $rel"$'\n'
   case "$rel" in
-    .opencode/*) OPENCODE_MANIFEST+="$(sha256_of "$from")  $rel"$'\n' ;;
-    *) CLAUDE_MANIFEST+="$(sha256_of "$from")  $rel"$'\n' ;;
+    .opencode/*)   OPENCODE_MANIFEST+="$entry" ;;
+    .sw-factory/*) SHARED_MANIFEST+="$entry" ;;
+    *)             CLAUDE_MANIFEST+="$entry" ;;
   esac
 done
+chmod +x "$DEST/.sw-factory/tools/hooks/guard.sh" "$DEST/.sw-factory/tools/usage.py" "$DEST/.sw-factory/tools/swf-cli.py"
+if [ "$HAVE_SHA" -eq 1 ]; then printf '%s' "$SHARED_MANIFEST" > "$(manifest_for .sw-factory/x)"; fi
 if has claude; then
-  chmod +x "$DEST/.claude/swf-tools/preflight.sh" "$DEST/.claude/swf-tools/hooks/guard.sh" \
-    "$DEST/.claude/swf-tools/usage.py" "$DEST/.claude/swf-tools/swf-cli.py"
+  chmod +x "$DEST/.claude/swf-tools/preflight.sh"
   [ "$HAVE_SHA" -eq 0 ] || printf '%s' "$CLAUDE_MANIFEST" > "$(manifest_for .claude/x)"
 fi
 if has opencode; then
-  chmod +x "$DEST/.opencode/swf-tools/preflight.sh" "$DEST/.opencode/swf-tools/hooks/guard.sh" \
-    "$DEST/.opencode/swf-tools/usage.py" "$DEST/.opencode/swf-tools/swf-cli.py"
+  chmod +x "$DEST/.opencode/swf-tools/preflight.sh"
   [ "$HAVE_SHA" -eq 0 ] || printf '%s' "$OPENCODE_MANIFEST" > "$(manifest_for .opencode/x)"
 fi
 [ "$HAVE_SHA" -eq 1 ] || echo 'warning: no SHA-256 utility found; manifest not written and differing files are treated as customized' >&2
@@ -136,7 +149,7 @@ fi
 if [ -e "$DEST/.sw-factory/config.yaml" ]; then
   echo "  kept  .sw-factory/config.yaml"
 else
-  mkdir -p "$DEST/.sw-factory"; cp "$SRC/.claude/swf-tools/templates/config.yaml" "$DEST/.sw-factory/config.yaml"
+  mkdir -p "$DEST/.sw-factory"; cp "$SRC/.sw-factory/tools/templates/config.yaml" "$DEST/.sw-factory/config.yaml"
   echo "  new  .sw-factory/config.yaml"
 fi
 
@@ -177,19 +190,19 @@ wire_hook() { # wire_hook <event> <marker> <entry> <label>: add <entry> unless <
     echo "         $3" >&2
   fi
 }
-# Hooks wired by earlier installs point at .claude/sw-factory/; repoint them at .claude/swf-tools/.
+# Hooks and the permission rule wired by earlier installs point at .claude/sw-factory/ or
+# .claude/swf-tools/ (and sf.py, the CLI's old name); repoint them at the shared .sw-factory/tools/.
+OLD_TOOLS='\.claude/(sw-factory|swf-tools)/(hooks/guard\.sh|usage\.py|sf\.py|swf-cli\.py)'
 for s in "$SETTINGS" "$DEST/.claude/settings.local.json"; do
-  if grep -qs '\.claude/sw-factory/\(hooks/guard\.sh\|usage\.py\|sf\.py\)\|\.claude/swf-tools/sf\.py' "$s"; then
-    sed -e 's#\.claude/sw-factory/hooks/guard\.sh#.claude/swf-tools/hooks/guard.sh#g' \
-        -e 's#\.claude/sw-factory/usage\.py#.claude/swf-tools/usage.py#g' \
-        -e 's#\.claude/sw-factory/sf\.py#.claude/swf-tools/swf-cli.py#g' \
-        -e 's#\.claude/swf-tools/sf\.py#.claude/swf-tools/swf-cli.py#g' "$s" > "$s.sw-factory.tmp" \
-      && mv "$s.sw-factory.tmp" "$s" && echo "  updated  ${s#"$DEST"/} (hooks moved to .claude/swf-tools/)"
+  if grep -qsE "$OLD_TOOLS" "$s"; then
+    sed -E -e 's#\.claude/(sw-factory|swf-tools)/sf\.py#.claude/\1/swf-cli.py#g' \
+        -e "s#$OLD_TOOLS#.sw-factory/tools/\\2#g" "$s" > "$s.sw-factory.tmp" \
+      && mv "$s.sw-factory.tmp" "$s" && echo "  updated  ${s#"$DEST"/} (tools moved to .sw-factory/tools/)"
   fi
 done
 
 # Agents run the bookkeeping CLI constantly; allow it so they never stop at a permission prompt.
-SF_ALLOW='Bash(python3 .claude/swf-tools/swf-cli.py:*)'
+SF_ALLOW='Bash(python3 .sw-factory/tools/swf-cli.py:*)'
 merge_allow() { # merge_allow <rule> <in> <out>: append <rule> to permissions.allow
   if command -v jq >/dev/null 2>&1; then
     jq --arg r "$1" '.permissions.allow = ((.permissions.allow // []) + [$r])' "$2" > "$3"
@@ -212,10 +225,10 @@ else
   echo "warning: could not add \"$SF_ALLOW\" to permissions.allow in .claude/settings.json; add it yourself." >&2
 fi
 
-wire_hook PreToolUse 'swf-tools/hooks/guard.sh' \
-  "$(hook_entry 'bash "${CLAUDE_PROJECT_DIR}/.claude/swf-tools/hooks/guard.sh"' 'Write|Edit|NotebookEdit|Agent|Task')" guard
-wire_hook SessionEnd 'swf-tools/usage.py' \
-  "$(hook_entry 'python3 "${CLAUDE_PROJECT_DIR}/.claude/swf-tools/usage.py" snapshot --hook >/dev/null 2>&1 || true')" 'usage snapshot'
+wire_hook PreToolUse 'sw-factory/tools/hooks/guard.sh' \
+  "$(hook_entry 'bash "${CLAUDE_PROJECT_DIR}/.sw-factory/tools/hooks/guard.sh"' 'Write|Edit|NotebookEdit|Agent|Task')" guard
+wire_hook SessionEnd 'sw-factory/tools/usage.py' \
+  "$(hook_entry 'python3 "${CLAUDE_PROJECT_DIR}/.sw-factory/tools/usage.py" snapshot --hook >/dev/null 2>&1 || true')" 'usage snapshot'
 
 fi
 

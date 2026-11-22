@@ -22,13 +22,13 @@ Paths come from `.sw-factory/config.yaml` (`paths.prds`, `paths.runs`).
 
 | Document | Path | Template |
 |---|---|---|
-| PRD | `<prds>/<slug>/prd.md` | `.claude/swf-tools/templates/prd.md` |
-| User stories | `<prds>/<slug>/stories.md` | `.claude/swf-tools/templates/stories.md` |
+| PRD | `<prds>/<slug>/prd.md` | `.sw-factory/tools/templates/prd.md` |
+| User stories | `<prds>/<slug>/stories.md` | `.sw-factory/tools/templates/stories.md` |
 | Clarification log | `<runs>/<run>/clarifications.md` | append-only; see below |
 
 A hook blocks writes anywhere else.
 
-`swf-cli` = `python3 .claude/swf-tools/swf-cli.py` (type it in full, from the repo root; `--help` on any
+`swf-cli` = `python3 .sw-factory/tools/swf-cli.py` (type it in full, from the repo root; `--help` on any
 command). Exit 0 ok · 1 problems found · 2 usage error. Never redo its work by hand.
 If a call fails in a way this prompt does not explain (a traceback, or exit 2 on a call its `--help` says is valid), do not work around it by hand or with a script. Return `STATUS: blocked` with the command and its output in `BLOCKED`. Never assume an earlier failure still holds: run the command again every time.
 

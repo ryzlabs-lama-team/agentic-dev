@@ -26,11 +26,11 @@ Follow `.opencode/swf-tools/protocols/clarification.md`: spawn `swf-po` for requ
 
 | Document | Path | Template |
 |---|---|---|
-| Plan | `<plans>/<slug>.md` | `.opencode/swf-tools/templates/plan.md` |
+| Plan | `<plans>/<slug>.md` | `.sw-factory/tools/templates/plan.md` |
 
 The sw-factory guard plugin blocks writes anywhere else.
 
-`swf-cli` = `python3 .opencode/swf-tools/swf-cli.py` (type it in full, from the repo root; `--help` on any
+`swf-cli` = `python3 .sw-factory/tools/swf-cli.py` (type it in full, from the repo root; `--help` on any
 command). Exit 0 ok · 1 problems found · 2 usage error. Never redo its work by hand.
 If a call fails in a way this prompt does not explain (a traceback, or exit 2 on a call its `--help` says is valid), do not work around it by hand or with a script. Return `STATUS: blocked` with the command and its output in `BLOCKED`. Never assume an earlier failure still holds: run the command again every time.
 Tick plan checkboxes only with `swf-cli plan tick <plan> P<n> <task ids…> --exit <n…|all>`, where
@@ -49,7 +49,7 @@ Tick plan checkboxes only with `swf-cli plan tick <plan> P<n> <task ids…> --ex
 4. **Tasks are test-first.** For each behaviour task, the test comes first. Each task names the
    files it touches and the story, AC or FR it satisfies.
 5. **Complexity signals per phase.** Give R, D, K, S and G as defined in
-   `.opencode/swf-tools/references/track-selection.md`, with the recommended track and a one-line
+   `.sw-factory/tools/references/track-selection.md`, with the recommended track and a one-line
    reason. Size each phase to its track:
    - `direct` and `subagents`: one builder session, about ≤ 15 files.
    - `opsx-loop` and `openspec`: one OpenSpec change.

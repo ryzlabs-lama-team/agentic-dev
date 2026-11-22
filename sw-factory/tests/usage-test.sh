@@ -1,11 +1,11 @@
 #!/usr/bin/env bash
-# Tests for .claude/swf-tools/usage.py against synthetic Claude Code transcripts and a synthetic
+# Tests for .sw-factory/tools/usage.py against synthetic Claude Code transcripts and a synthetic
 # OpenCode database.
 #   bash tests/usage-test.sh
 set -uo pipefail
 
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-USAGE="$SRC/.claude/swf-tools/usage.py"
+USAGE="$SRC/.sw-factory/tools/usage.py"
 BASE="$(mktemp -d)"; trap 'rm -rf "$BASE"' EXIT
 PROJ="$BASE/proj"; T="$BASE/transcripts"
 mkdir -p "$PROJ/.sw-factory" "$T"
@@ -185,7 +185,7 @@ builder_prompt = 'TRACK: subagents\nRUN: portal\nWORK PACKAGE: docs/plans/portal
 session('R1', None, 'swf-manager', 1000)
 user('R1', 1000, 'run the portal')
 asst('R1', 1100, 'swf-manager', OPUS, 0.5, i=100, o=10, reasoning=5, r=1000, w=50,
-     tools=[('bash', {'command': 'python3 .opencode/swf-tools/swf-cli.py ledger init portal'}, None),
+     tools=[('bash', {'command': 'python3 .sw-factory/tools/swf-cli.py ledger init portal'}, None),
             ('task', {'subagent_type': 'swf-builder', 'prompt': builder_prompt, 'description': 'd'}, 'C1')])
 session('C1', 'R1', 'swf-builder', 1150)
 user('C1', 1150, builder_prompt)

@@ -26,15 +26,15 @@ Paths come from `.sw-factory/config.yaml` (`paths.tech_designs`, `paths.adrs`, `
 
 | Document | Path | Template |
 |---|---|---|
-| HLD | `<tech_designs>/<system>/hld.md` | `.opencode/swf-tools/templates/hld.md` |
-| LLD | `<tech_designs>/<system>/lld-<topic>.md` | `.opencode/swf-tools/templates/lld.md` |
-| ADR | `<adrs>/NNNN-<kebab-title>.md` (next free number) | `.opencode/swf-tools/templates/adr.md` |
+| HLD | `<tech_designs>/<system>/hld.md` | `.sw-factory/tools/templates/hld.md` |
+| LLD | `<tech_designs>/<system>/lld-<topic>.md` | `.sw-factory/tools/templates/lld.md` |
+| ADR | `<adrs>/NNNN-<kebab-title>.md` (next free number) | `.sw-factory/tools/templates/adr.md` |
 | Triage | `<runs>/<run>/triage.md` | below |
 | Clarification log | `<runs>/<run>/clarifications.md` | same entry format as the swf-po's, with `owner: swf-architect` |
 
 The sw-factory guard plugin blocks writes anywhere else.
 
-`swf-cli` = `python3 .opencode/swf-tools/swf-cli.py` (type it in full, from the repo root; `--help` on any
+`swf-cli` = `python3 .sw-factory/tools/swf-cli.py` (type it in full, from the repo root; `--help` on any
 command). Exit 0 ok · 1 problems found · 2 usage error. Never redo its work by hand.
 If a call fails in a way this prompt does not explain (a traceback, or exit 2 on a call its `--help` says is valid), do not work around it by hand or with a script. Return `STATUS: blocked` with the command and its output in `BLOCKED`. Never assume an earlier failure still holds: run the command again every time.
 
@@ -56,7 +56,7 @@ If a call fails in a way this prompt does not explain (a traceback, or exit 2 on
    ## Notes
    <anything that would change the level: hidden coupling, missing tests, unclear ownership>
    ```
-3. The definitions of R, D, K, S and G are in `.opencode/swf-tools/references/track-selection.md`.
+3. The definitions of R, D, K, S and G are in `.sw-factory/tools/references/track-selection.md`.
    Use them exactly. **When unsure between two values, pick the higher one.** Over-estimating a
    risk costs a gate. Under-estimating it costs an incident.
 

@@ -21,7 +21,7 @@ Check what it does not: the gates, the PRD, the design, the docs, and drift.
 `STORIES`, `BASE` (the ref this work package started from), `ROUND`, and `FINDINGS PATH`. Gates,
 coverage scope and commands come from `.sw-factory/config.yaml`.
 
-`swf-cli` = `python3 .claude/swf-tools/swf-cli.py` (type it in full, from the repo root; `--help` on any
+`swf-cli` = `python3 .sw-factory/tools/swf-cli.py` (type it in full, from the repo root; `--help` on any
 command). Exit 0 ok · 1 problems found · 2 usage error or not configured · 3 unmeasurable. Its
 numbers are measurements: report them, do not recompute them. If a call fails in a way this prompt does not explain (a traceback, or exit 2 on a call its `--help` says is valid), do not work around it: flag `GATE UNMEASURABLE` for the check it serves and put the command and its output in the findings file. Never assume an earlier failure still holds: run the command again every time.
 
@@ -73,13 +73,13 @@ behaviour, advisory otherwise.
 **7. Document drift.** Only a document's owner may change it. A guard hook blocks other agents'
 `Write`/`Edit`, but not shell redirection. Run `swf-cli qa drift <RUN> --base <BASE>`. Exit 1 means
 `DOC DRIFT`, and it lists each offending path. It checks every changed path, tracked or untracked,
-under `<prds> <tech_designs> <adrs> <plans> .sw-factory/config.yaml .claude/ .opencode/`, by these rules:
+under `<prds> <tech_designs> <adrs> <plans> .sw-factory/config.yaml .sw-factory/tools/ .claude/ .opencode/`, by these rules:
 - **Accounted for:** the path appears in the run ledger (`<runs>/<run>/ledger.md`, in the
   Documents table or a Log row's artifact) or in a `Recorded in:` line of
   `<runs>/<run>/clarifications.md`. That makes it an owner's edit, so it is legitimate.
 - **Checkbox ticks only** (`- [ ]` → `- [x]`) in a plan: legitimate.
 - **Anything else** is `DOC DRIFT`.
-- **Any** change to `.sw-factory/config.yaml`, `.claude/**` or `.opencode/**` is `DOC DRIFT`, because gates or
+- **Any** change to `.sw-factory/config.yaml`, `.sw-factory/tools/**`, `.claude/**` or `.opencode/**` is `DOC DRIFT`, because gates or
   guards were altered.
 
 `openspec/**` is out of scope here. On the opsx tracks, `opsx-verifier` reports spec drift.

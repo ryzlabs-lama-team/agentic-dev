@@ -30,7 +30,7 @@ that section and continue. Before each spawn, run `swf-cli clar count <RUN> --wp
 --adding <questions>`. Exit 1 means the 5-question budget would be exceeded: return
 `STATUS: under-specified` instead of asking.
 
-`swf-cli` = `python3 .opencode/swf-tools/swf-cli.py` (type it in full, from the repo root; `--help` on any
+`swf-cli` = `python3 .sw-factory/tools/swf-cli.py` (type it in full, from the repo root; `--help` on any
 command). Exit 0 ok · 1 problems found · 2 usage error or not configured. Never redo its work by
 hand. If a call fails in a way this prompt does not explain (a traceback, or exit 2 on a call its `--help` says is valid), do not work around it by hand or with a script. Return `STATUS: blocked` with the command and its output in `BLOCKED`. Never assume an earlier failure still holds: run the command again every time.
 
@@ -92,7 +92,7 @@ noisy retry makes the next QA round unreadable.
 ## Constraints
 
 - **Never edit requirements or design documents:** `<prds>/**`, `<tech_designs>/**`,
-  `<adrs>/**`, `openspec/**`. Also never edit `.sw-factory/config.yaml`, `.claude/**` or `.opencode/**`. The guard plugin blocks these. Do not route around it
+  `<adrs>/**`, `openspec/**`. Also never edit `.sw-factory/config.yaml`, `.sw-factory/tools/**`, `.claude/**` or `.opencode/**`. The guard plugin blocks these. Do not route around it
   with shell redirection. swf-qa reports that as `DOC DRIFT`, and it stops the run.
 - **Do not expand scope.** Respect the work package's "Out of scope". Note adjacent problems in
   your payload instead of fixing them.

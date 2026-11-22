@@ -17,26 +17,27 @@ for a in swf-manager swf-po swf-architect swf-planner swf-builder swf-qa; do
 done
 [ -z "$missing" ] && ok "all 6 sw-factory agents installed" || bad "missing agents:$missing"
 
-for f in protocols/clarification.md references/track-selection.md hooks/guard.sh; do
-  [ -f ".claude/swf-tools/$f" ] || bad ".claude/swf-tools/$f missing — reinstall the sw-factory"
+for f in .claude/swf-tools/protocols/clarification.md .sw-factory/tools/references/track-selection.md \
+         .sw-factory/tools/hooks/guard.sh .sw-factory/tools/swf-cli.py; do
+  [ -f "$f" ] || bad "$f missing — reinstall the sw-factory"
 done
 
 CFG=.sw-factory/config.yaml
-if [ -f "$CFG" ]; then ok "$CFG present"; else bad "$CFG missing — copy .claude/swf-tools/templates/config.yaml there"; fi
+if [ -f "$CFG" ]; then ok "$CFG present"; else bad "$CFG missing — copy .sw-factory/tools/templates/config.yaml there"; fi
 
-if grep -qs 'swf-tools/hooks/guard.sh' .claude/settings.json .claude/settings.local.json; then
+if grep -qs 'sw-factory/tools/hooks/guard.sh' .claude/settings.json .claude/settings.local.json; then
   ok "ownership guard wired as a PreToolUse hook"
 else
   warn "ownership guard not wired in .claude/settings.json — rerun install.sh; until then only swf-qa's drift check applies"
 fi
 if ! command -v python3 >/dev/null 2>&1; then
   bad "python3 not on PATH — the agents' bookkeeping CLI (swf-cli.py) needs it"
-elif v="$(python3 .claude/swf-tools/swf-cli.py --version 2>&1)"; then
+elif v="$(python3 .sw-factory/tools/swf-cli.py --version 2>&1)"; then
   ok "bookkeeping CLI runs ($v)"
 else
-  bad ".claude/swf-tools/swf-cli.py does not run: $v"
+  bad ".sw-factory/tools/swf-cli.py does not run: $v"
 fi
-if grep -qsF 'Bash(python3 .claude/swf-tools/swf-cli.py:*)' .claude/settings.json .claude/settings.local.json; then
+if grep -qsF 'Bash(python3 .sw-factory/tools/swf-cli.py:*)' .claude/settings.json .claude/settings.local.json; then
   ok "swf-cli.py allowed in permissions"
 else
   warn "swf-cli.py not in permissions.allow — agents will stop at permission prompts; rerun install.sh"

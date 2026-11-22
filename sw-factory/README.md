@@ -44,13 +44,15 @@ bash .opencode/swf-tools/preflight.sh && opencode --agent swf-manager   # OpenCo
 To make `swf-manager` the default for the repository, add `"agent": "swf-manager"` to
 `.claude/settings.json`. The installer leaves your settings alone.
 
-The installer copies six agents into `.claude/agents/swf/` and `.claude/swf-tools/` (protocol,
-references, templates, guard hook, preflight, usage report). It also:
+The installer copies six agents into `.claude/agents/swf/`, the Claude-specific support files
+into `.claude/swf-tools/` (preflight, clarification protocol, track playbooks), and the tools both
+runtimes share into `.sw-factory/tools/` (`swf-cli.py`, `usage.py`, guard hook, templates,
+track-selection reference; see [Shared tools](#shared-tools)). It also:
 
 - creates `.sw-factory/config.yaml` **once** and never overwrites it;
-- removes unmodified copies left in `.claude/agents/` and `.claude/sw-factory/` by earlier
-  installs, warns about customized ones instead of deleting them, and repoints old hook entries
-  at `.claude/swf-tools/`;
+- removes unmodified copies left by earlier installs (agents in `.claude/agents/`, support files in
+  `.claude/sw-factory/`, shared tools in `.claude/swf-tools/`), warns about customized ones instead
+  of deleting them, and repoints old hook and permission entries at `.sw-factory/tools/`;
 - merges two hooks into `.claude/settings.json`, keeping your existing settings: the ownership
   guard (`hooks.PreToolUse`) and the usage snapshot (`hooks.SessionEnd`). It never touches invalid
   JSON and prints the entries for you to add instead;
@@ -108,7 +110,7 @@ opsx-verify and sync.
 The swf-architect triages each change against the real codebase and returns five signals. These
 are R (requirements delta), D (design delta), K (risk flags), S (size) and G (greenfield). The
 swf-manager maps them to a level and a track per work item. Full rules:
-[`track-selection.md`](.claude/swf-tools/references/track-selection.md).
+[`track-selection.md`](.sw-factory/tools/references/track-selection.md).
 
 | Level | Typical work | Track | Human gates |
 |---|---|---|---|
@@ -149,7 +151,7 @@ every builder follows. In short:
 
 ## Document ownership is enforced
 
-A project-level `PreToolUse` hook ([`hooks/guard.sh`](.claude/swf-tools/hooks/guard.sh)), which
+A project-level `PreToolUse` hook ([`hooks/guard.sh`](.sw-factory/tools/hooks/guard.sh)), which
 `install.sh` merges into `.claude/settings.json`, identifies the calling agent from the hook
 input's `agent_type`. It blocks:
 
@@ -165,7 +167,7 @@ it allows the call. Shell redirection is not covered, so `swf-qa`'s drift check 
 covers the AI-SDLC documents, the config and `.claude/`, tracked and untracked. A change is
 legitimate only if the run ledger or the clarification log accounts for it, or it only ticks
 checkboxes. Anything else is `DOC DRIFT` and stops the run. On the opsx tracks, `opsx-verifier`
-reports drift in `openspec/` itself. `tests/guard-test.sh` covers the hook policy (56 cases). OpenCode runs the same script from a
+reports drift in `openspec/` itself. `tests/guard-test.sh` covers the hook policy (60 cases). OpenCode runs the same script from a
 plugin; see [Running on OpenCode](#running-on-opencode).
 
 Why settings rather than agent frontmatter: the docs say frontmatter `hooks:` fire for subagents
@@ -175,7 +177,7 @@ and `--agent` sessions. In Claude Code 2.1.318 they did not fire in either mode.
 ## Scripted bookkeeping
 
 Work with exactly one right answer is not left to a model. The agents run
-[`swf-cli.py`](.claude/swf-tools/swf-cli.py), a stdlib-only Python CLI, through Bash. It handles ticking
+[`swf-cli.py`](.sw-factory/tools/swf-cli.py), a stdlib-only Python CLI, through Bash. It handles ticking
 tasks, keeping the ledger, bumping versions, numbering ids, checking traceability, measuring
 changed-lines coverage and checking drift. Each agent's prompt names the commands it uses. A
 command prints a few `key: value` lines for the agent's payload, never a document body, and its
@@ -201,14 +203,14 @@ exit code tells the agent what to do next:
 | `gates run build · test · coverage · lint · all` | runs `commands.*`, logs to `<runs>/<slug>/logs/`, prints one line per gate with parsed test counts | builder, swf-qa |
 
 ```sh
-python3 .claude/swf-tools/swf-cli.py --help              # and <group> --help, <group> <command> --help
+python3 .sw-factory/tools/swf-cli.py --help              # and <group> --help, <group> <command> --help
 ```
 
-`install.sh` adds `Bash(python3 .claude/swf-tools/swf-cli.py:*)` to `permissions.allow`, so agents
+`install.sh` adds `Bash(python3 .sw-factory/tools/swf-cli.py:*)` to `permissions.allow`, so agents
 never stop at a prompt. python3 is required, and the preflight fails without it. Ownership is
 unchanged: each agent runs `swf-cli.py` only on the documents it owns. Bash writes bypass the guard
 hook, so swf-qa's drift check (itself `swf-cli.py qa drift`) is still the backstop.
-`tests/swf-cli-test.sh` covers every command (167 cases). It also lints the prompts of both trees: every `swf-cli`
+`tests/swf-cli-test.sh` covers every command (172 cases). It also lints the prompts of both trees: every `swf-cli`
 command written in an agent, protocol, reference or this README must name a real command and
 only options it accepts. Each prompt carries only the commands its agent uses, inline in the step
 that needs them, and the CLI stays the single source of truth.
@@ -216,8 +218,9 @@ that needs them, and the CLI stays the single source of truth.
 ## Running on OpenCode
 
 `./install.sh --target opencode` installs seven agents into `.opencode/agents/` (flat: OpenCode
-would name `agents/swf/x.md` `swf/x`), the guard plugin `.opencode/plugins/swf-guard.ts`, and
-`.opencode/swf-tools/`. It writes no `opencode.json` and touches no OpenCode config. The lifecycle,
+would name `agents/swf/x.md` `swf/x`), the guard plugin `.opencode/plugins/swf-guard.ts`, the
+OpenCode-specific support files into `.opencode/swf-tools/`, and the same shared
+`.sw-factory/tools/` as the Claude target. It writes no `opencode.json` and touches no OpenCode config. The lifecycle,
 gates, tracks, documents, CLI, ledger and payloads are the same. Only the runtime mechanism differs:
 
 | | Claude Code | OpenCode |
@@ -230,7 +233,7 @@ gates, tracks, documents, CLI, ledger and payloads are the same. Only the runtim
 | Nested consultation | up to 3 levels below the main session | the plugin raises `subagent_depth` to 3 (OpenCode's default of 1 blocks builder → swf-po) |
 | Ownership guard | `PreToolUse` hook in `.claude/settings.json` → `guard.sh` | plugin `tool.execute.before` → the same `guard.sh`, for `write`, `edit`, every file of an `apply_patch`, and `task` |
 | opsx tracks | invoke the `opsx-loop` skill | follow `.opencode/agents/opsx-loop.md`'s procedure; round 2 uses `opsx-implementer-hard` |
-| swf-cli permission | `Bash(python3 .claude/swf-tools/swf-cli.py:*)` merged into settings | none needed (OpenCode allows bash by default) |
+| swf-cli permission | `Bash(python3 .sw-factory/tools/swf-cli.py:*)` merged into settings | none needed (OpenCode allows bash by default) |
 | Usage report | `usage.py` reads the transcripts; a `SessionEnd` hook snapshots each session | the same `usage.py` reads OpenCode's session database; `report` refreshes the snapshots (no hook needed: OpenCode does not expire sessions) |
 
 The plugin learns each session's agent from `chat.message` (falling back to the session record),
@@ -247,34 +250,30 @@ pinned model, so a bad id fails before the run, not at a spawn after a gate. The
 opsx-loop's OpenCode distribution (`openspec-agents/opsx-loop/install.sh --target opencode`) and
 `openspec init --tools opencode`.
 
-Support files that read the same in both runtimes (`swf-cli.py`, `guard.sh`, `usage.py`, templates,
-`track-selection.md`) have one source, `.claude/swf-tools/`. The installer copies them into
-`.opencode/swf-tools/` and lays the OpenCode-specific files from this repo's `.opencode/swf-tools/`
-(preflight, clarification protocol, track playbooks) over them. The agent bodies are hand-maintained
-duplicates of the Claude ones. Keep them in step: `tests/opencode-test.sh` fails on Claude-only
+The agent bodies are hand-maintained duplicates of the Claude ones. Keep them in step: `tests/opencode-test.sh` fails on Claude-only
 paths and tool names in the OpenCode tree, and the prompt lint covers both trees.
 
-`tests/opencode-test.sh` covers the tree's invariants, the installer's targets and clobber guard,
-and the plugin's hooks (77 cases; the plugin cases need node ≥ 23).
+`tests/opencode-test.sh` covers the tree's invariants, the installer's targets, clobber guard and upgrade
+from per-runtime copies of the shared tools, and the plugin's hooks (103 cases; the plugin cases
+need node ≥ 23).
 
 ## Measuring consumption
 
-[`usage.py`](.claude/swf-tools/usage.py) reports what a run consumed: tokens, cost, API calls and
+[`usage.py`](.sw-factory/tools/usage.py) reports what a run consumed: tokens, cost, API calls and
 peak context per agent, phase, track, model or session. It reads what the runtime already records
 for every session and subagent: Claude Code's transcripts, and OpenCode's session database
 (`$XDG_DATA_HOME/opencode/opencode.db`, default `~/.local/share/opencode/`, opened read-only). No agent runs it, reads its output or knows it
 exists, so measuring adds nothing to any agent's context.
 
 ```sh
-python3 .claude/swf-tools/usage.py report                   # every run, by phase and agent
-python3 .claude/swf-tools/usage.py report customer-portal   # one run
-python3 .claude/swf-tools/usage.py report --by track        # or phase | model | session | run
-python3 .claude/swf-tools/usage.py report --format csv      # or json
-python3 .claude/swf-tools/usage.py report --runtime opencode # or claude; default: every runtime found
+python3 .sw-factory/tools/usage.py report                   # every run, by phase and agent
+python3 .sw-factory/tools/usage.py report customer-portal   # one run
+python3 .sw-factory/tools/usage.py report --by track        # or phase | model | session | run
+python3 .sw-factory/tools/usage.py report --format csv      # or json
+python3 .sw-factory/tools/usage.py report --runtime opencode # or claude; default: every runtime found
 ```
 
-On OpenCode, run the same commands from `.opencode/swf-tools/usage.py`. Either copy reads both
-runtimes, so a repository where both run gets one report.
+It reads both runtimes, so a repository where both run gets one report.
 
 ```
 sw-factory usage · run customer-portal · 3 sessions (2 ended) · 2026-11-06 → 2026-11-07 · ~$14.82
@@ -337,7 +336,7 @@ docs/
     .usage/<session>.json                 usage snapshots (usage.py; no agent reads them)
 ```
 
-Templates for every document are in [`.claude/swf-tools/templates/`](.claude/swf-tools/templates/).
+Templates for every document are in [`.sw-factory/tools/templates/`](.sw-factory/tools/templates/).
 
 ## Design notes
 
@@ -384,28 +383,45 @@ Templates for every document are in [`.claude/swf-tools/templates/`](.claude/swf
 - **`docs/ards`** in the notes is read as `docs/adrs`. Change `paths.adrs` in the config if the
   typo was intended.
 
+## Shared tools
+
+A tool that works in both runtimes has exactly one copy, in `.sw-factory/tools/`: in this repo, and
+in every target repo whatever `--target` installs. Each runtime's `swf-tools/` holds only files whose
+text names that runtime's tools or paths.
+
+| Shared (`.sw-factory/tools/`) | Per runtime (`.claude/swf-tools/`, `.opencode/swf-tools/`) |
+|---|---|
+| `swf-cli.py`, `usage.py`, `hooks/guard.sh`, `templates/`, `references/track-selection.md` | `preflight.sh`, `protocols/clarification.md`, `references/tracks/*.md` |
+
+Where a shared tool needs a runtime-specific file, it asks which runtime is running:
+`SWF_RUNTIME` (set by the OpenCode plugin, for the guard and for agents' shells), else OpenCode's
+`OPENCODE=1`, else Claude Code's `CLAUDECODE=1`. `swf-cli.py` uses it to run that runtime's preflight
+for the `TRACKS:` line; `guard.sh` uses it to point a blocked agent at that runtime's protocol.
+The installer tracks the shared tools in their own manifest, `.sw-factory/.install-manifest`, and
+the drift check and the guard protect `.sw-factory/tools/**` like `.claude/**` and `.opencode/**`.
+
 ## Layout
 
 ```
+.sw-factory/tools/                  shared by both runtimes (installed once)
+  swf-cli.py                        bookkeeping CLI the agents run (ledger, plan, docs, QA, level, gates)
+  usage.py                          token and cost report (for the human; agents never read it)
+  hooks/guard.sh                    document ownership + spawn allowlist
+  references/track-selection.md     signals → level → track
+  templates/                        prd, stories, hld, lld, adr, plan, ledger, config
 .claude/
   agents/swf/
     swf-manager.md   swf-po.md   swf-architect.md   swf-planner.md   swf-builder.md   swf-qa.md
-  swf-tools/
+  swf-tools/                        Claude Code-specific
     preflight.sh                    factory checks + TRACKS line
-    swf-cli.py                           bookkeeping CLI the agents run (ledger, plan, docs, QA, level, gates)
-    usage.py                        token and cost report (for the human; agents never read it)
-    hooks/guard.sh                  document ownership + spawn allowlist
     protocols/clarification.md      the builder ↔ swf-po / swf-architect contract
-    references/
-      track-selection.md            signals → level → track
-      tracks/{direct,subagents,opsx-loop}.md   playbooks
-    templates/                      prd, stories, hld, lld, adr, plan, ledger, config
+    references/tracks/{direct,subagents,opsx-loop}.md   playbooks
 .opencode/
   agents/
     swf-manager.md (primary)  swf-po.md  swf-architect.md  swf-planner.md  swf-builder.md
     swf-builder-hard.md (hidden)  swf-qa.md
   plugins/swf-guard.ts              ownership guard + subagent_depth
-  swf-tools/                        OpenCode-specific files only; the rest installs from .claude/swf-tools/
+  swf-tools/                        OpenCode-specific
     preflight.sh   protocols/clarification.md   references/tracks/{direct,subagents,opsx-loop}.md
 tests/guard-test.sh   tests/usage-test.sh   tests/swf-cli-test.sh   tests/opencode-test.sh
 install.sh

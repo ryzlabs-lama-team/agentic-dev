@@ -14,9 +14,9 @@ set -f   # path patterns below must not glob against the filesystem
 
 INPUT="$(cat)"
 PROJECT="${SWF_PROJECT_DIR:-${CLAUDE_PROJECT_DIR:-$PWD}}"
-# The protocol next to this copy of the guard: .claude/swf-tools/ or .opencode/swf-tools/.
-TOOLS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." 2>/dev/null && pwd)"
-PROTOCOL="${TOOLS_DIR#"$PROJECT"/}/protocols/clarification.md"
+# The clarification protocol is runtime-specific: the OpenCode plugin passes SWF_RUNTIME=opencode.
+case "${SWF_RUNTIME:-claude}" in opencode) RUNTIME_DIR=.opencode ;; *) RUNTIME_DIR=.claude ;; esac
+PROTOCOL="$RUNTIME_DIR/swf-tools/protocols/clarification.md"
 CFG="$PROJECT/.sw-factory/config.yaml"
 
 if command -v jq >/dev/null 2>&1; then PARSER=jq
@@ -128,7 +128,7 @@ DESIGNS="$(cfg_path tech_designs docs/tech-designs)"
 ADRS="$(cfg_path adrs docs/adrs)"
 PLANS="$(cfg_path plans docs/plans)"
 RUNS="$(cfg_path runs .sw-factory/runs)"
-GUARDED='.sw-factory/config.yaml .claude/* .opencode/*'
+GUARDED='.sw-factory/config.yaml .sw-factory/tools/* .claude/* .opencode/*'
 
 owner_of() {
   if matches "$1" "$PRDS/*"; then echo swf-po

@@ -29,7 +29,7 @@ read uses up the context that lets one session carry a feature from idea to rele
 
 Paths come from `.sw-factory/config.yaml`. Read it once per run.
 
-`swf-cli` = `python3 .claude/swf-tools/swf-cli.py` (type it in full, from the repo root; `--help` on any
+`swf-cli` = `python3 .sw-factory/tools/swf-cli.py` (type it in full, from the repo root; `--help` on any
 command). Exit 0 ok · 1 problems found · 2 usage error. Never redo its work by hand.
 If a call fails in a way this prompt does not explain (a traceback, or exit 2 on a call its `--help` says is valid), do not work around it and do not have an agent do it by hand: stop and show the human the command and its output. Never assume an earlier failure still holds: run the command again every time.
 
@@ -140,7 +140,7 @@ ask in **one** batched question round. Do not invent goals. Record them with
 Spawn `swf-architect` with `MODE: triage`, the run slug, and the request. It writes
 `<runs>/<slug>/triage.md` and returns the signals R, D, K, S, G. Assign the **level** with
 `swf-cli level R=… D=… K=… S=<files> G=… [C=<components>] [--stories <n>] --tracks "<TRACKS line>"`.
-It applies `.claude/swf-tools/references/track-selection.md` §2–4 and prints the level, the
+It applies `.sw-factory/tools/references/track-selection.md` §2–4 and prints the level, the
 deciding signal, the track (or its fallback and what that loses), the ADRs required, and the ledger
 line. Record the level with `swf-cli ledger set <slug> level L<x>`. Read the reference itself only for
 overrides (§5). The level decides which stages run:

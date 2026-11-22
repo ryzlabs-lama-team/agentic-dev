@@ -4,12 +4,12 @@ Claude Code's transcripts and OpenCode's session database.
 
 No agent reads or runs this file, so measuring a run adds nothing to any agent's context.
 
-  python3 <tools>/usage.py report [<run-slug>] [--by agent|phase|track|model|session|run]
-                                  [--format table|json|csv] [--runtime auto|claude|opencode]
-  python3 <tools>/usage.py snapshot
-  python3 <tools>/usage.py snapshot --hook   # Claude Code SessionEnd hook: JSON on stdin, silent
+  python3 .sw-factory/tools/usage.py report [<run-slug>] [--by agent|phase|track|model|session|run]
+                                            [--format table|json|csv] [--runtime auto|claude|opencode]
+  python3 .sw-factory/tools/usage.py snapshot
+  python3 .sw-factory/tools/usage.py snapshot --hook   # Claude Code SessionEnd hook: JSON on stdin, silent
 
-<tools> is .claude/swf-tools or .opencode/swf-tools; both copies read both runtimes. Run it from the
+One copy reads both runtimes, so a repository where both run gets one report. Run it from the
 repository root, in a terminal of its own: output inside an agent session lands in its context.
 Both commands save one summary per factory session under <runs>/.usage/, so a report still works
 after the runtime has deleted old sessions.

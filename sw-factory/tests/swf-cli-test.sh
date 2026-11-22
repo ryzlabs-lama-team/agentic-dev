@@ -1,10 +1,10 @@
 #!/usr/bin/env bash
-# Tests for .claude/swf-tools/swf-cli.py against a throwaway git repository.
+# Tests for .sw-factory/tools/swf-cli.py against a throwaway git repository.
 #   bash tests/swf-cli-test.sh
 set -uo pipefail
 
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-SF="$SRC/.claude/swf-tools/swf-cli.py"
+SF="$SRC/.sw-factory/tools/swf-cli.py"
 command -v python3 >/dev/null 2>&1 || { echo 'SKIP  python3 not found'; exit 0; }
 command -v git >/dev/null 2>&1 || { echo 'SKIP  git not found'; exit 0; }
 BASE_DIR="$(mktemp -d)"; trap 'rm -rf "$BASE_DIR"' EXIT
@@ -234,7 +234,25 @@ has "$LEDGER" '^Branch: '                        "branch recorded"
 has "$LEDGER" '^Tracks available: direct=yes subagents=yes opsx-loop=no openspec=no$' "tracks recorded"
 has "$LEDGER" '^Commit policy: ask$'             "commit policy from config default"
 t 1 "ledger exists"             "ledger init refuses to overwrite" ledger init demo --request x --entry change --tracks x
-t 0 "TRACKS:"                   "ledger init runs the preflight for TRACKS" ledger init other --request x --entry defect
+# Without --tracks, ledger init runs the running runtime's preflight (runtime_dir()). Fake preflights
+# say which one ran; they are removed again so later drift checks do not see them.
+for rt in claude opencode; do
+  mkdir -p "$PROJ/.$rt/swf-tools"; printf 'echo "TRACKS: direct=yes from=%s"\n' "$rt" > "$PROJ/.$rt/swf-tools/preflight.sh"
+done
+runtime_case() { # runtime_case <slug> <expected runtime> <description> <env assignments…>
+  local slug="$1" want="$2" desc="$3"; shift 3
+  (cd "$PROJ" && env -u SWF_RUNTIME -u OPENCODE -u CLAUDECODE "$@" python3 "$SF" ledger init "$slug" --request x --entry defect >/dev/null 2>&1)
+  if grep -q "^Tracks available: direct=yes from=$want\$" "$PROJ/.sw-factory/runs/$slug/ledger.md" 2>/dev/null; then pass=$((pass + 1))
+  else fail=$((fail + 1)); printf 'FAIL  %s\n' "$desc"; fi
+}
+runtime_case rt-sw  opencode "SWF_RUNTIME picks the runtime's preflight"   SWF_RUNTIME=opencode CLAUDECODE=1
+runtime_case rt-oc  opencode "OPENCODE=1 wins over an inherited CLAUDECODE" OPENCODE=1 CLAUDECODE=1
+runtime_case rt-cc  claude   "CLAUDECODE=1 picks Claude Code's preflight"   CLAUDECODE=1
+runtime_case rt-any claude   "outside both runtimes, the installed one"     X=1
+rm "$PROJ/.claude/swf-tools/preflight.sh"
+runtime_case rt-one opencode "only OpenCode installed"                      X=1
+rm -rf "$PROJ/.claude" "$PROJ/.opencode"
+t 0 "TRACKS: unknown (no preflight" "no preflight installed is reported, not fatal" ledger init other --request x --entry defect
 t 2 "invalid run slug"          "slug validated"                  ledger init ../x --request x --entry change --tracks x
 t 2 "no ledger for run nope"    "missing ledger"                  ledger summary nope
 t 0 "Level: L1"                 "ledger set"                      ledger set demo level L1
@@ -441,7 +459,7 @@ t 2 "--cmd overrides one gate"  "all with --cmd"                   gates run all
 lint="$(python3 -I - "$SRC" <<'PY'
 import argparse, glob, importlib.util, os, re, sys
 src = sys.argv[1]
-spec = importlib.util.spec_from_file_location('sf', os.path.join(src, '.claude/swf-tools/swf-cli.py'))
+spec = importlib.util.spec_from_file_location('sf', os.path.join(src, '.sw-factory/tools/swf-cli.py'))
 sf = importlib.util.module_from_spec(spec); spec.loader.exec_module(sf)
 top = sf.build_parser()
 
@@ -451,10 +469,11 @@ def subs(p):
 def options(p):
     return {o for a in p._actions for o in a.option_strings}
 
-PREFIX = re.compile(r'^(swf-cli|python3 \.(?:claude|opencode)/swf-tools/swf-cli\.py)(\s+|$)')
+PREFIX = re.compile(r'^(swf-cli|python3 \.sw-factory/tools/swf-cli\.py)(\s+|$)')
 FENCE = re.compile(r'```[^\n]*\n(.*?)```', re.S)
 files = sorted(glob.glob(src + '/.claude/agents/swf/*.md') + glob.glob(src + '/.claude/swf-tools/**/*.md', recursive=True)
                + glob.glob(src + '/.opencode/agents/*.md') + glob.glob(src + '/.opencode/swf-tools/**/*.md', recursive=True)
+               + glob.glob(src + '/.sw-factory/tools/**/*.md', recursive=True)
                + [src + '/README.md'])
 checked = 0
 for f in files:

@@ -42,43 +42,78 @@ R="$(newrepo default)"
 check "default target is claude"                     test -f "$R/.claude/agents/swf/swf-manager.md"
 check "default target installs no OpenCode tree"     test ! -e "$R/.opencode"
 
+SHARED="swf-cli.py usage.py hooks/guard.sh references/track-selection.md templates/prd.md templates/config.yaml"
 R="$(newrepo oc)"
 out="$("$SRC/install.sh" --target opencode "$R" 2>&1)"
 check "opencode: install succeeds"                   test -f "$R/.opencode/.sw-factory-install-manifest"
 for a in $AGENTS; do check "opencode: agent $a" test -f "$R/.opencode/agents/$a.md"; done
 check "opencode: plugin installed"                   test -f "$R/.opencode/plugins/swf-guard.ts"
-check "opencode: shared swf-cli.py is the .claude copy" cmp -s "$SRC/.claude/swf-tools/swf-cli.py" "$R/.opencode/swf-tools/swf-cli.py"
-check "opencode: shared guard.sh is the .claude copy"   cmp -s "$SRC/.claude/swf-tools/hooks/guard.sh" "$R/.opencode/swf-tools/hooks/guard.sh"
-check "opencode: protocol is the OpenCode overlay"   cmp -s "$SRC/.opencode/swf-tools/protocols/clarification.md" "$R/.opencode/swf-tools/protocols/clarification.md"
-check "opencode: preflight is the OpenCode overlay"  cmp -s "$SRC/.opencode/swf-tools/preflight.sh" "$R/.opencode/swf-tools/preflight.sh"
-check "opencode: shared usage.py is the .claude copy" cmp -s "$SRC/.claude/swf-tools/usage.py" "$R/.opencode/swf-tools/usage.py"
+for f in $SHARED; do
+  check "opencode: shared $f installed once, in .sw-factory/tools" cmp -s "$SRC/.sw-factory/tools/$f" "$R/.sw-factory/tools/$f"
+  check "opencode: shared $f not copied into .opencode"          test ! -e "$R/.opencode/swf-tools/$f"
+done
+check "opencode: protocol is the OpenCode one"       cmp -s "$SRC/.opencode/swf-tools/protocols/clarification.md" "$R/.opencode/swf-tools/protocols/clarification.md"
+check "opencode: preflight is the OpenCode one"      cmp -s "$SRC/.opencode/swf-tools/preflight.sh" "$R/.opencode/swf-tools/preflight.sh"
+check "opencode: playbooks are the OpenCode ones"    cmp -s "$SRC/.opencode/swf-tools/references/tracks/opsx-loop.md" "$R/.opencode/swf-tools/references/tracks/opsx-loop.md"
 check "opencode: no .claude tree"                    test ! -e "$R/.claude"
 check "opencode: no opencode.json written"           bash -c "! ls '$R'/opencode.json* 2>/dev/null"
 check "opencode: config created"                     test -f "$R/.sw-factory/config.yaml"
 check "opencode: run state gitignored"               grep -q '^\.sw-factory/runs/' "$R/.gitignore"
-check "opencode: scripts executable"                 test -x "$R/.opencode/swf-tools/preflight.sh" -a -x "$R/.opencode/swf-tools/swf-cli.py"
+check "opencode: scripts executable"                 test -x "$R/.opencode/swf-tools/preflight.sh" -a -x "$R/.sw-factory/tools/swf-cli.py" -a -x "$R/.sw-factory/tools/hooks/guard.sh"
 check "opencode: manifest lists only .opencode/"     bash -c "! grep -v '  \.opencode/' '$R/.opencode/.sw-factory-install-manifest'"
+check "opencode: shared manifest lists only tools"   bash -c "! grep -v '  \.sw-factory/tools/' '$R/.sw-factory/.install-manifest'"
 check "opencode: next step names opencode"           grep -q 'opencode --agent swf-manager' <<<"$out"
-check "opencode: swf-cli runs from the installed tree" bash -c "cd '$R' && python3 .opencode/swf-tools/swf-cli.py --version"
+check "opencode: swf-cli runs from the shared tools" bash -c "cd '$R' && python3 .sw-factory/tools/swf-cli.py --version"
 check "opencode: reinstall is all identical" \
-  bash -c "! '$SRC/install.sh' --target opencode '$R' 2>&1 | grep -E '^  (new|stale|customized) '"
+  bash -c "! '$SRC/install.sh' --target opencode '$R' 2>&1 | grep -E '^  (new|stale|customized|removed) '"
 echo '# mine' >> "$R/.opencode/agents/swf-qa.md"
 check "opencode: refuses to clobber a customized agent" bash -c "! '$SRC/install.sh' --target opencode '$R'"
 check "opencode: --force overwrites it" \
   bash -c "'$SRC/install.sh' --force --target opencode '$R' && cmp -s '$SRC/.opencode/agents/swf-qa.md' '$R/.opencode/agents/swf-qa.md'"
-cp "$SRC/.claude/swf-tools/templates/lld.md" "$BASE/old-lld" && echo stale >> "$BASE/old-lld"
-cp "$BASE/old-lld" "$R/.opencode/swf-tools/templates/lld.md"
-sed -i.bak "s#^[0-9a-f]*  \.opencode/swf-tools/templates/lld\.md#$(shasum -a 256 "$BASE/old-lld" | awk '{print $1}')  .opencode/swf-tools/templates/lld.md#" "$R/.opencode/.sw-factory-install-manifest"
-check "opencode: a stale (unmodified older) file is updated" \
-  bash -c "'$SRC/install.sh' --target opencode '$R' | grep -q '^  stale  \.opencode/swf-tools/templates/lld\.md'"
+cp "$SRC/.sw-factory/tools/templates/lld.md" "$BASE/old-lld" && echo stale >> "$BASE/old-lld"
+cp "$BASE/old-lld" "$R/.sw-factory/tools/templates/lld.md"
+sed -i.bak "s#^[0-9a-f]*  \.sw-factory/tools/templates/lld\.md#$(shasum -a 256 "$BASE/old-lld" | awk '{print $1}')  .sw-factory/tools/templates/lld.md#" "$R/.sw-factory/.install-manifest"
+check "shared: a stale (unmodified older) tool is updated" \
+  bash -c "'$SRC/install.sh' --target opencode '$R' | grep -q '^  stale  \.sw-factory/tools/templates/lld\.md'"
 
 R="$(newrepo all)"
 "$SRC/install.sh" --target all "$R" >/dev/null 2>&1
 check "all: Claude agents"                           test -f "$R/.claude/agents/swf/swf-qa.md"
 check "all: OpenCode agents"                         test -f "$R/.opencode/agents/swf-builder-hard.md"
-check "all: Claude hooks wired"                      grep -q 'swf-tools/hooks/guard.sh' "$R/.claude/settings.json"
-check "all: two manifests"                           test -f "$R/.claude/.sw-factory-install-manifest" -a -f "$R/.opencode/.sw-factory-install-manifest"
-check "all: Claude manifest lists no .opencode/"     bash -c "! grep -q '  \.opencode/' '$R/.claude/.sw-factory-install-manifest'"
+check "all: one copy of the shared tools"            bash -c "[ ! -e '$R/.claude/swf-tools/swf-cli.py' ] && [ ! -e '$R/.opencode/swf-tools/swf-cli.py' ] && [ -f '$R/.sw-factory/tools/swf-cli.py' ]"
+check "all: Claude hook runs the shared guard"       grep -q '/.sw-factory/tools/hooks/guard.sh' "$R/.claude/settings.json"
+check "all: Claude usage hook runs the shared usage.py" grep -q '/.sw-factory/tools/usage.py' "$R/.claude/settings.json"
+check "all: swf-cli allowed at its shared path"      grep -qF 'Bash(python3 .sw-factory/tools/swf-cli.py:*)' "$R/.claude/settings.json"
+check "all: three manifests" \
+  test -f "$R/.claude/.sw-factory-install-manifest" -a -f "$R/.opencode/.sw-factory-install-manifest" -a -f "$R/.sw-factory/.install-manifest"
+check "all: Claude manifest lists only Claude files" bash -c "! grep -qv '  \.claude/' '$R/.claude/.sw-factory-install-manifest'"
+check "all: Claude preflight passes"                 bash -c "cd '$R' && bash .claude/swf-tools/preflight.sh"
+
+# Upgrade from the layout that copied the shared tools into each runtime's swf-tools/.
+R="$(newrepo upgrade)"
+"$SRC/install.sh" --target all "$R" >/dev/null 2>&1
+for rt in claude opencode; do
+  for f in swf-cli.py usage.py hooks/guard.sh templates/plan.md; do
+    mkdir -p "$(dirname "$R/.$rt/swf-tools/$f")"; cp "$SRC/.sw-factory/tools/$f" "$R/.$rt/swf-tools/$f"
+  done
+done
+cp "$SRC/.sw-factory/tools/templates/prd.md" "$R/.opencode/swf-tools/templates/prd.md"; echo '# mine' >> "$R/.opencode/swf-tools/templates/prd.md"
+cat > "$R/.claude/settings.json" <<'JSON'
+{"permissions": {"allow": ["Bash(python3 .claude/swf-tools/swf-cli.py:*)"]},
+ "hooks": {"PreToolUse": [{"matcher": "Write|Edit|NotebookEdit|Agent|Task", "hooks": [{"type": "command", "command": "bash \"${CLAUDE_PROJECT_DIR}/.claude/swf-tools/hooks/guard.sh\""}]}],
+           "SessionEnd": [{"hooks": [{"type": "command", "command": "python3 \"${CLAUDE_PROJECT_DIR}/.claude/swf-tools/usage.py\" snapshot --hook"}]}]}}
+JSON
+"$SRC/install.sh" --target opencode "$R" > "$BASE/up1.out" 2>&1
+check "upgrade: opencode-only leaves Claude's old copies"  test -f "$R/.claude/swf-tools/hooks/guard.sh"
+check "upgrade: opencode's unmodified old copies removed"  bash -c "[ ! -e '$R/.opencode/swf-tools/swf-cli.py' ] && [ ! -e '$R/.opencode/swf-tools/hooks' ]"
+check "upgrade: a customized old copy is kept"             test -f "$R/.opencode/swf-tools/templates/prd.md"
+check "upgrade: and reported"                              grep -q 'templates/prd.md is customized and was left in place' "$BASE/up1.out"
+"$SRC/install.sh" --target all "$R" > "$BASE/up2.out" 2>&1
+check "upgrade: Claude's old copies removed"               bash -c "[ ! -e '$R/.claude/swf-tools/swf-cli.py' ] && [ ! -e '$R/.claude/swf-tools/hooks' ] && [ ! -e '$R/.claude/swf-tools/templates' ]"
+check "upgrade: settings repointed at the shared tools"    bash -c "! grep -q '\.claude/swf-tools/\(hooks\|usage\|swf-cli\)' '$R/.claude/settings.json' && grep -q '\.sw-factory/tools/hooks/guard\.sh' '$R/.claude/settings.json'"
+check "upgrade: hooks not wired twice"                     bash -c "[ \"\$(grep -o 'tools/hooks/guard.sh' '$R/.claude/settings.json' | wc -l | tr -d ' ')\" = 1 ]"
+check "upgrade: permission not added twice"                bash -c "[ \"\$(grep -o 'swf-cli.py:\*' '$R/.claude/settings.json' | wc -l | tr -d ' ')\" = 1 ]"
+check "upgrade: runtime-specific files stay"               test -f "$R/.claude/swf-tools/preflight.sh" -a -f "$R/.claude/swf-tools/protocols/clarification.md"
 check "bad --target is a usage error"                bash -c "! '$SRC/install.sh' --target vscode '$R'"
 
 # --- plugin -------------------------------------------------------------------------------
@@ -126,6 +161,11 @@ await t('unknown session is not governed', 'allow', () => call('ses-broken', 'wr
 await t('non-factory agent is not governed', 'allow', () => call('ses-build', 'write', { filePath: root + '/docs/prds/x/prd.md' }))
 await h['chat.message']({ sessionID: 'ses-b', agent: 'build' }, {})
 await t('agent switch in a session is followed', 'allow', () => call('ses-b', 'write', { filePath: root + '/docs/prds/x/prd.md' }))
+const env = { env: {} }; await h['shell.env']({ cwd: root }, env)
+results.push((env.env.SWF_RUNTIME === 'opencode' ? 'PASS ' : 'FAIL ') + 'shell.env: tells the shared tools the runtime')
+try { await call('ses-m', 'write', { filePath: root + '/src/a.ts' }) } catch (e) {
+  results.push((/\.opencode\/swf-tools\/protocols\/clarification\.md/.test(e.message) ? 'PASS ' : 'FAIL ') + 'block message names the OpenCode protocol')
+}
 console.log(results.join('\n'))
 JS
 )"

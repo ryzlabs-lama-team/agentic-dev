@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url"
 // sw-factory guard for OpenCode: the counterpart of the Claude Code PreToolUse hook.
 //
 // - Ownership and consultation: every write / edit / apply_patch / task call made by a factory
-//   agent is translated into the hook input that .opencode/swf-tools/hooks/guard.sh already
+//   agent is translated into the hook input that .sw-factory/tools/hooks/guard.sh already
 //   understands, so both runtimes enforce one policy from one script (tests/guard-test.sh).
 //   Exit 2 from the guard blocks the call, and its message reaches the agent as the tool error.
 // - Nesting: builders, the planner and the architect consult swf-po / swf-architect themselves
@@ -21,7 +21,7 @@ const MIN_DEPTH = 3
 
 // <root>/.opencode/plugins/swf-guard.ts → <root>
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..", "..")
-const GUARD = path.join(ROOT, ".opencode", "swf-tools", "hooks", "guard.sh")
+const GUARD = path.join(ROOT, ".sw-factory", "tools", "hooks", "guard.sh")
 
 type HookInput = { tool_name: string; agent_type: string; tool_input: Record<string, string> }
 
@@ -58,7 +58,7 @@ function runGuard(input: HookInput, cwd: string): string | undefined {
   const r = spawnSync("bash", [GUARD], {
     input: JSON.stringify(input),
     cwd,
-    env: { ...process.env, SWF_PROJECT_DIR: ROOT },
+    env: { ...process.env, SWF_PROJECT_DIR: ROOT, SWF_RUNTIME: "opencode" },
     encoding: "utf8",
   })
   if (r.status === 2) return (r.stderr || "sw-factory guard: blocked").trim()
@@ -87,6 +87,10 @@ export const SwfGuard: Plugin = async ({ client, directory }) => {
   return {
     config: async (cfg: any) => {
       if ((cfg.subagent_depth ?? 1) < MIN_DEPTH) cfg.subagent_depth = MIN_DEPTH
+    },
+    // The shared tools (swf-cli.py) find this runtime's own files from SWF_RUNTIME.
+    "shell.env": async (_input, output) => {
+      output.env.SWF_RUNTIME = "opencode"
     },
     "chat.message": async (input) => {
       if (input.agent) agents.set(input.sessionID, input.agent)
