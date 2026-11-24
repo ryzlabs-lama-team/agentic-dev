@@ -478,8 +478,9 @@ TASK = re.compile(r'^(\s*[-*]\s+\[)([ xX])(\]\s+\*\*)([\w.\-]+)(\*\*.*)$')
 
 
 def plan_phases(lines):
-    """{phase id: (start, end)} for the `## P<n> — …` sections."""
-    return {m.group(1): (s, e) for m, s, e in sections(lines, r'(P\d+)\b', 2)}
+    """{phase id: (start, end)} for the `## P<n> — …` sections. Ids may carry a letter suffix
+    (`P9c`); they are upper-cased (`P9C`), as phase ids are everywhere else."""
+    return {m.group(1).upper(): (s, e) for m, s, e in sections(lines, r'([Pp]\d+[A-Za-z]*)\b', 2)}
 
 
 def phase_tasks(lines, start, end):
@@ -512,6 +513,16 @@ def phase_exits(lines, start, end):
                     out.append((n, len(out) + 1, m.group(2) != ' '))
             return out
     return []
+
+
+def item_end(lines, i):
+    """Index of the last line of the list item starting at line i: its wrapped continuation lines
+    (indented, non-blank, not themselves a list item) belong to it."""
+    j = i
+    while j + 1 < len(lines) and lines[j + 1][:1].isspace() and lines[j + 1].strip() \
+            and not re.match(r'^\s*([-*+]|\d+[.)])\s', lines[j + 1]):
+        j += 1
+    return j
 
 
 def exit_summary(exits):
@@ -563,6 +574,9 @@ def cmd_plan_tick(a):
     s, e = get_phase(phases, a.phase, a.plan)
     if not a.tasks and not a.exit:
         raise Fail('give task ids, --exit <n…|all>, or both')
+    note = ' '.join((a.note or '').split())
+    if a.note is not None and (not note or not a.exit or len(a.exit) != 1 or a.exit == ['all']):
+        raise Fail('--note needs a non-empty text and exactly one --exit criterion')
     tasks = {t[1]: t for t in phase_tasks(lines, s, e)}
     unknown = [t for t in a.tasks if t not in tasks]
     if unknown:
@@ -590,17 +604,24 @@ def cmd_plan_tick(a):
             continue
         lines[i] = TASK.sub(lambda m: m.group(1) + 'x' + m.group(3) + m.group(4) + m.group(5), lines[i])
         ticked.append(tid)
+    noted = ''
     for n in want_exits:
         i, _, done = exits[n]
+        if note:
+            j = item_end(lines, i)
+            if not ' '.join(lines[i:j + 1]).rstrip().endswith('— note: ' + note):
+                lines[j] = lines[j].rstrip() + ' — note: ' + note
+                noted = ' · noted: exit ' + n
         if done:
             already.append('exit ' + n)
             continue
         lines[i] = EXIT.sub(lambda m: m.group(1) + 'x' + m.group(3), lines[i])
         ticked.append('exit ' + n)
-    if ticked:
+    if ticked or noted:
         write(a.plan, to_text(lines, text))
     tasks = phase_tasks(lines, s, e)
-    print('ticked: %s%s' % (', '.join(ticked) or 'none', ' · already ticked: ' + ', '.join(already) if already else ''))
+    print('ticked: %s%s%s' % (', '.join(ticked) or 'none',
+                              ' · already ticked: ' + ', '.join(already) if already else '', noted))
     print('%s tasks %d/%d%s' % (a.phase.upper(), sum(1 for t in tasks if t[2]), len(tasks),
                                exit_summary(phase_exits(lines, s, e))))
     return 0
@@ -1828,6 +1849,8 @@ def build_parser():
     c.add_argument('tasks', nargs='*', help='task ids, e.g. 1.1 1.2')
     c.add_argument('--exit', nargs='+', metavar='N',
                    help='exit criteria by position under "### Exit criteria" (1 = first), or "all"')
+    c.add_argument('--note', metavar='TEXT',
+                   help='append " — note: TEXT" to the one --exit criterion (also when it is already ticked)')
     c = cmd(g, 'phases', cmd_plan_phases, 'the Phase map as one line per phase')
     c.add_argument('plan')
     c = cmd(g, 'sync', cmd_plan_sync, 'sync the Phase map Status column and front-matter status from the ledger')

@@ -28,7 +28,9 @@ A hook blocks writes anywhere else.
 command). Exit 0 ok · 1 problems found · 2 usage error. Never redo its work by hand.
 If a call fails in a way this prompt does not explain (a traceback, or exit 2 on a call its `--help` says is valid), do not work around it by hand or with a script. Return `STATUS: blocked` with the command and its output in `BLOCKED`. Never assume an earlier failure still holds: run the command again every time.
 Tick plan checkboxes only with `swf-cli plan tick <plan> P<n> <task ids…> --exit <n…|all>`, where
-`--exit` takes exit criteria by position under `### Exit criteria` (1 = first). Never edit a tick by hand.
+`--exit` takes exit criteria by position under `### Exit criteria` (1 = first) and `P<n>` may carry a
+letter suffix (`P9c`). Add `--note "<text>"` with a single `--exit` criterion to record how it was met
+(it also works on one already ticked). Never edit a tick or a note by hand.
 
 ## Modes
 

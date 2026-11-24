@@ -221,6 +221,40 @@ t 0 "P1 tasks 2/2 · all ticked · exit 3/3" "status after ticking exits" plan s
 cp docs/plans/demo.md docs/notaplan.md
 t 2 "plan must be under docs/plans/" "tick outside the plans dir (config path read)" plan tick docs/notaplan.md P1 1.1
 rm docs/notaplan.md
+# Letter-suffixed phases (P9c) and notes on exit criteria, in a plan of their own.
+cat > docs/plans/suffix.md <<'MD'
+## P9 — base
+### Tasks
+- [ ] **9.1** base task
+
+## P9c — follow-up
+### Tasks
+- [ ] **9c.1** follow-up task
+
+### Exit criteria
+- [ ] Coverage gate met
+- [ ] Docs updated, wrapped
+  onto a second line
+  - [ ] nested, not a criterion
+MD
+t 0 "P9C tasks 0/1 · open: 9c.1 · exit 0/2" "plan status sees a letter-suffixed phase" plan status docs/plans/suffix.md --phase P9c
+t 0 "P9 tasks 0/1 · open: 9.1"  "P9 is still its own phase"       plan status docs/plans/suffix.md --phase P9
+t 0 "ticked: 9c.1"              "tick a task in P9c"              plan tick docs/plans/suffix.md P9c 9c.1
+has docs/plans/suffix.md '^- \[x\] \*\*9c\.1\*\*' "task 9c.1 ticked in the file"
+has docs/plans/suffix.md '^- \[ \] \*\*9\.1\*\*'  "P9 task untouched"
+t 2 "--note needs"              "--note without --exit"           plan tick docs/plans/suffix.md P9c 9c.1 --note x
+t 2 "--note needs"              "--note with two criteria"        plan tick docs/plans/suffix.md P9c --exit 1 2 --note x
+t 2 "--note needs"              "--note with --exit all"          plan tick docs/plans/suffix.md P9c --exit all --note x
+t 2 "--note needs"              "--note with blank text"          plan tick docs/plans/suffix.md P9c --exit 1 --note "  "
+t 0 "ticked: exit 1 · noted: exit 1" "tick an exit criterion with a note" plan tick docs/plans/suffix.md P9c --exit 1 --note "86% vs 80% gate"
+has docs/plans/suffix.md '^- \[x\] Coverage gate met — note: 86% vs 80% gate$' "note appended to the criterion"
+t 0 "already ticked: exit 1"    "same note again is a no-op"      plan tick docs/plans/suffix.md P9c --exit 1 --note "86% vs 80% gate"
+hasnt docs/plans/suffix.md 'gate — note: 86% vs 80% gate — note' "note not duplicated"
+t 0 "noted: exit 2"             "note on a wrapped criterion"     plan tick docs/plans/suffix.md P9c --exit 2 --note "README only"
+has docs/plans/suffix.md '^  onto a second line — note: README only$' "note goes after the wrapped line"
+has docs/plans/suffix.md '^  - \[ \] nested, not a criterion$'      "nested checkbox untouched by the note"
+t 0 "P9C tasks 1/1 · all ticked · exit 2/2" "status after notes" plan status docs/plans/suffix.md --phase P9c
+rm docs/plans/suffix.md
 t 0 "P2 · feature · US-DEMO-002, US-DEMO-001" "plan phases"      plan phases docs/plans/demo.md
 
 # ---------------------------------------------------------------------------------------- ledger
