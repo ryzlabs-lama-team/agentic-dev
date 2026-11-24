@@ -68,7 +68,12 @@ resumes you with the answer.
 
 ### If you do not have the `Agent` tool (opsx-* agents, anything else)
 
-Stop at a safe point and return to your caller with:
+**opsx-* agents** use their own `STATUS: question` protocol (questions in `.opsx-run/<slug>/qa.md`)
+and add an owner tag to every question: `### Q<n> [swf-po | swf-architect | swf-po+swf-architect]:
+<question>`. The swf-manager routes them to the owners and resumes you with the answers in
+`qa.md`.
+
+**Any other agent** stops at a safe point and returns to its caller with:
 
 ```
 STATUS: needs-clarification

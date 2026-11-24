@@ -260,7 +260,8 @@ documents created or updated (paths and versions), advisories, and anything left
 |---|---|
 | `ok`, `partial` | Next step. For `partial`, verification decides, not the builder's self-report |
 | `needs-human` | Batch with other pending human questions and ask. Then send the decision to the owner named in the payload (`owner: swf-po \| swf-architect`) with `MODE: record-decision`, so it lands in a document: resume that owner if you spawned it, otherwise spawn it fresh (see below). Then resume the waiting agent with `SendMessage` |
-| `needs-clarification` (opsx-* and other relayed builders) | Route by tag, **one owner at a time**: `swf-po` first, then `swf-architect`, each with `MODE: clarify`. They share the clarification log, so never run them in parallel. Then resume the builder with `SendMessage`, giving the answers and the updated paths |
+| `question` (opsx-*) | Route by owner tag, then write the answers into `qa.md` and resume the asker. See the opsx-loop playbook, override 3 |
+| `needs-clarification` (other relayed builders) | Route by tag, **one owner at a time**: `swf-po` first, then `swf-architect`, each with `MODE: clarify`. They share the clarification log, so never run them in parallel. Then resume the builder with `SendMessage`, giving the answers and the updated paths |
 | `MISROUTED` questions in a swf-po or swf-architect payload | Send them to the other owner with `MODE: clarify` before resuming the asker |
 | `under-specified` | The upstream document is inadequate. Send the gaps to its owner (`update` / `evolve`), re-gate if the change is material, then re-run the item |
 | `out-of-track` | Stop the item. Re-triage with the builder's findings. Re-select the track and tell the human if the level rose |

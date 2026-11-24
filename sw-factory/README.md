@@ -138,8 +138,10 @@ every builder follows. In short:
    each other.
 3. **Direct when possible.** Claude Code subagents can spawn subagents (up to 3 levels below the
    main session), so `swf-builder` and `swf-planner` spawn `swf-po` / `swf-architect` themselves.
-   Builders without the Agent tool (the `opsx-*` agents) return `STATUS: needs-clarification`
-   with tagged questions, and the swf-manager relays them.
+   The `opsx-*` agents have no Agent tool. They return their own `STATUS: question`, adding a
+   `[swf-po | swf-architect]` tag to each question, and the swf-manager routes the questions to the
+   owners. Other builders without the Agent tool return `STATUS: needs-clarification` with tagged
+   questions, and the swf-manager relays them.
 4. **Answers land in documents.** The owner answers by updating its PRD or design (with a version
    bump and a decision-log row) and logs the exchange in `.sw-factory/runs/<run>/clarifications.md`.
    This is how the documents stay current as the work reveals gaps.

@@ -55,14 +55,29 @@ Append this to the prompt of every `opsx-*` spawn:
 
 ```
 sw-factory: you cannot reach the swf-po or swf-architect yourself. If the change artifacts and the
-upstream documents above do not answer a question you need answered, follow
-.claude/swf-tools/protocols/clarification.md, "If you do not have the Agent tool".
+upstream documents above do not answer a question you need answered, return STATUS: question
+as your own instructions describe, and tag every question in qa.md [swf-po], [swf-architect]
+or [swf-po+swf-architect]. The swf-manager routes them to those owners.
 Be concise. Work without commentary or progress narration. Your only output is your return
 payload, once you have results.
 ```
 
-When `opsx-implementer` returns `needs-clarification` or `spec-conflict`, route the questions to
-their owners first. Then:
+When any opsx agent returns `STATUS: question`, the owners answer before the human does. This
+overrides the skill's relay-to-the-human step:
+
+1. Route the questions by tag, one owner at a time: **swf-po** first, then **swf-architect**, each
+   with `MODE: clarify`. Route an untagged question by the what/how rule in the clarification
+   protocol.
+2. Ask the human only what an owner returns as `needs-human`, then have that owner record the
+   decision (`MODE: record-decision`).
+3. Under each `Q<n>` in `qa.md`, add the answer and the `path#section` the owner updated.
+4. Resume the asker as the skill describes: `SendMessage`, or a fresh spawn reading `qa.md` if
+   that fails.
+
+Owner answers count toward the clarification budget (5 per work package); opsx's own cap of 2
+question rounds per stage also applies.
+
+When `opsx-implementer` returns `spec-conflict`, route the questions to their owners first. Then:
 - the **spec** is wrong → fresh `opsx-proposer` for `/opsx:update`, then re-apply. This is the
   skill's own route.
 - the **upstream document** is wrong → the owner updates it. If that changes agreed requirements
