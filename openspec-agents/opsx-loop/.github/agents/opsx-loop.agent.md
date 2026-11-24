@@ -27,5 +27,13 @@ findings then triggers that round-1 worker. If it remains blocking, retry round 
 round 2 is blocking, stop and report outstanding findings—never spawn a third retry. A spec conflict
 stops implementation without editing artifacts and routes to a fresh proposer for revision.
 
+Explorer, proposer, and implementer workers receive `.opsx-run/<slug>/qa.md` and may return
+`STATUS: question`. Relay, never answer: record `awaiting-answer` in the ledger, ask the human
+each question with its options and the worker's default as the recommendation, and append each
+answer under its `Q<n>` in `qa.md`. Copilot workers cannot be resumed, so delegate a fresh worker
+of the same profile with the original inputs plus "read qa.md first; answers are binding". Allow
+at most 2 question rounds per stage; a third is `needs-human`. Questions never reset retry or
+verify round counts. Carry answers given during propose to the human gate.
+
 Verifier is always a different worker spawn from the implementer it reviews. Sync starts only after
 PASS or PASS-WITH-ADVISORIES. Run `bash .github/opsx-loop/preflight.sh` before opening a run.

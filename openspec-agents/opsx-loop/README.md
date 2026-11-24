@@ -89,11 +89,29 @@ Every other stage already hands off through OpenSpec's own files, so no other br
 |---|---|---|
 | OpenSpec artifacts | `openspec/changes/<id>/**`, `openspec/specs/**` | every subagent, fresh each stage |
 | Bridge files | `.opsx-run/<slug>/brief.md`, `verify-<n>.md` | the next stage's subagent |
+| Question log | `.opsx-run/<slug>/qa.md` | the subagent that asked, on resume or respawn |
 | Run ledger | `.opsx-run/<slug>/ledger.md` | the orchestrator, incl. after compaction |
 | Return payloads | ≤30 lines per stage | the orchestrator only |
 
 The orchestrator never reads specs, code, or diffs. It reads paths and
 `openspec status --change <id> --json`. That is what lets a long run fit in one session.
+
+### Subagent questions
+
+Subagents normally settle ambiguity by stating an assumption and moving on. When an ambiguity is
+too costly to assume, the explorer, proposer, or implementer can stop at a resumable point, append
+its questions (with options and a default) to `.opsx-run/<slug>/qa.md`, and return
+`STATUS: question`. The orchestrator relays the questions to the human without answering them
+itself, writes the answers back into `qa.md`, and **resumes the same subagent** so the context it
+built up is not lost. If the resume isn't possible, it spawns a fresh agent of the same type that
+reads `qa.md` first. Each stage gets at most 2 question rounds; a third is treated as
+`needs-human`. Resuming a subagent to answer its own question is the only permitted reuse:
+verify retries still always get a fresh implementer.
+
+| | Claude Code | OpenCode | GitHub Copilot |
+|---|---|---|---|
+| Resume mechanism | `SendMessage` to the agent id | `task` tool with the prior `task_id` | none, so always a fresh worker that reads `qa.md` |
+| Asking the human | AskUserQuestion | `question` tool, plain-text fallback | plain text |
 
 ### Model allocation
 

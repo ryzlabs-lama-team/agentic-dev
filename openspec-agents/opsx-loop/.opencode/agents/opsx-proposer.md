@@ -29,7 +29,8 @@ do not invent a format from memory. This file governs inputs, constraints, and y
 
 ## Your task
 
-You are given: a change id, a run slug, and the path to the explore brief.
+You are given: a change id, a run slug, the path to the explore brief, and the question-log
+path.
 
 1. **Read the brief in full.** It is your primary input. Honour its recommended scope, respect
    its non-goals, and proceed under its stated assumptions for open questions.
@@ -67,6 +68,15 @@ The implementer is a cheaper model with no memory of this conversation. Write ta
 - Do not exceed the brief's scope. If the brief is wrong, say so in your return payload and let
   the orchestrator route back to explore. Do not silently correct it.
 
+## Asking the human
+
+If an ambiguity is too costly to assume (materially different work, expensive to undo, nothing on
+disk settles it), leave no half-written artifact that hinges on the answer, append up to 4 questions
+to the given `.opsx-run/<slug>/qa.md` under `## propose — question round <r>` (each `### Q<n>` with
+Options, Default, Why it matters) and return `STATUS: question` with `QUESTIONS`, `QA`, and
+`RESUME-STATE`. When resumed or re-spawned after answers, read `qa.md` first: answers are binding.
+Continue from what is on disk; never ask a third round.
+
 ## Return payload
 
 Return **at most 30 lines**. Never paste artifact contents — the orchestrator reads paths, not
@@ -74,7 +84,7 @@ bodies.
 
 ```
 STAGE: propose
-STATUS: ok | validation-failed | brief-inadequate
+STATUS: ok | question | validation-failed | brief-inadequate
 CHANGE: <change-id>
 ARTIFACTS: <paths written>
 REQUIREMENTS: <count> across <n> capabilities
@@ -82,6 +92,7 @@ TASKS: <count> in <n> groups
 ASSUMPTIONS ENCODED: <up to 3 — the ones a human should check at the gate>
 VALIDATION: pass | <error>
 BLOCKERS: <none | what is wrong>
+QUESTIONS / QA / RESUME-STATE: <only when STATUS: question>
 NEXT: human-gate
 ```
 

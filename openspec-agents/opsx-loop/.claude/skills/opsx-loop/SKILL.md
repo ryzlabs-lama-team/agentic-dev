@@ -19,6 +19,7 @@ stages **through files on disk**, never through you.
 | OpenSpec artifacts | `openspec/changes/<id>/**`, `openspec/specs/**` | every subagent, fresh each stage |
 | Explore brief | `.opsx-run/<slug>/brief.md` | the proposer |
 | Verify findings | `.opsx-run/<slug>/verify-<n>.md` | the implementer on retry |
+| Question log | `.opsx-run/<slug>/qa.md` | the asking subagent, on resume or respawn |
 | Run ledger | `.opsx-run/<slug>/ledger.md` | **you** — survives your own compaction |
 | Return payloads | ≤30 lines per stage | you only |
 
@@ -72,6 +73,19 @@ Started: <date>
 ```
 
 Append a row after every stage. If your context is compacted mid-run, this file is how you recover.
+
+### Subagent questions (every stage)
+
+Explorer, proposer, and implementer spawns (retries included) receive `.opsx-run/<slug>/qa.md` and
+may return `STATUS: question`. Relay, never answer: record `awaiting-answer` with the agent id in
+the ledger, ask the human via AskUserQuestion with each question's options and the subagent's
+default as Recommended, and append each answer under its `Q<n>` in `qa.md`. Resume the same subagent
+via `SendMessage` to that agent id; if that fails, spawn a fresh one of the same type (keep
+`model: "opus"` for apply round 2) with the original inputs plus "read qa.md first; answers are
+binding". Allow at most 2 question rounds per stage (each apply round counts separately); a third is
+`needs-human`. Questions never reset retry or verify round counts. Carry answers given during
+propose to the human gate. Resuming to answer a subagent's own question is the only permitted reuse
+of a subagent.
 
 ### 2. explore
 

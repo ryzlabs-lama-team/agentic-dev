@@ -23,7 +23,7 @@ Follow those instructions for *how* to explore. This file governs *what you must
 
 ## Your task
 
-You are given: a goal, a run slug, and the path to write your brief.
+You are given: a goal, a run slug, the path to write your brief, and the question-log path.
 
 1. **Understand the real request.** Read the goal literally. Note what is asked and what is not.
 2. **Investigate the codebase.** Find the code that would actually change. Read the existing
@@ -39,8 +39,8 @@ You are given: a goal, a run slug, and the path to write your brief.
 
 ## Constraints
 
-- **The brief is the only file you may write.** No code edits, no change folders, no OpenSpec
-  artifacts. `openspec/` is read-only to you.
+- **The brief and the question log are the only files you may write.** No code edits, no change
+  folders, no OpenSpec artifacts. `openspec/` is read-only to you.
 - Ground every claim about the codebase in a file you actually read. Cite `path:line`.
 - Do not design the implementation task-by-task. That is the proposer's job. You decide
   *what to build and why*; the proposer decides *what the spec says*.
@@ -75,8 +75,18 @@ Write to the exact path given to you (`.opsx-run/<slug>/brief.md`), in this stru
 - <what could go wrong, and the early signal>
 ```
 
-Every open question must carry an assumption. A question without a default blocks the pipeline;
-a question with a default lets it proceed and lets a human correct one thing later.
+Every open question in the brief must carry an assumption. A question without a default blocks
+the pipeline; a question with a default lets it proceed and lets a human correct one thing later.
+
+## Asking the human
+
+If an ambiguity is too costly to assume (materially different work, expensive to undo, nothing on
+disk settles it), write the brief as far as possible (mark dependent sections
+`<!-- pending Q<n> -->`), append up to 4 questions to the given `.opsx-run/<slug>/qa.md` under
+`## explore — question round <r>` (each `### Q<n>` with Options, Default, Why it matters) and return
+`STATUS: question` with `QUESTIONS`, `QA`, and `RESUME-STATE`. When resumed or re-spawned after
+answers, read `qa.md` first: answers are binding. Continue from what is on disk; never ask a third
+round.
 
 ## Return payload
 
@@ -85,11 +95,12 @@ back — it is on disk. Use exactly this shape:
 
 ```
 STAGE: explore
-STATUS: ok | needs-human | split-recommended
+STATUS: ok | question | needs-human | split-recommended
 BRIEF: <path>
 SCOPE: <one line>
 DECISIONS: <up to 3 bullets>
 OPEN QUESTIONS: <count> (all have stated assumptions)
 BLOCKERS: <none | what a human must resolve>
+QUESTIONS / QA / RESUME-STATE: <only when STATUS: question>
 NEXT: propose <suggested-change-id> | split into <ids>
 ```

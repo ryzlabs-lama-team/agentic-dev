@@ -11,4 +11,5 @@ user-invocable: false
 Reuse the complete `opsx-implementer` procedure and constraints. Do not delegate. You are invoked
 only for retry round 2 with a change id and latest findings path: re-read the approved artifacts,
 fix exactly those findings, preserve planning artifacts, update only fully completed tasks, and
-return the standard apply payload in 30 lines or fewer.
+return the standard apply payload in 30 lines or fewer. The `opsx-implementer` question protocol
+(`STATUS: question`, `qa.md`) applies unchanged.

@@ -23,8 +23,8 @@ Load OpenSpec's own apply instructions. Try in order, stop at first hit:
 
 ## Your task
 
-You are given: a change id, and either a task scope (all, or specific groups) or a findings file
-from a failed verify round.
+You are given: a change id, the question-log path, and either a task scope (all, or specific
+groups) or a findings file from a failed verify round.
 
 1. **Read `openspec/changes/<id>/tasks.md` and the delta specs.** The specs are the contract; the
    tasks are the route. If they disagree, the spec wins — and report the disagreement.
@@ -48,8 +48,19 @@ round unreadable.
   it. Rewriting the spec to match your implementation defeats the entire loop.
 - **Do not expand scope.** The proposal lists non-goals. Respect them. Note adjacent problems in
   your return payload instead of fixing them.
-- If a task is blocked (missing dependency, ambiguous spec, failing pre-existing test), complete
+- If a task is blocked (missing dependency, failing pre-existing test), complete
   every other task first, then report precisely what is blocked and why.
+  An ambiguous spec is a question, not `blocked`; a wrong one is `spec-conflict`.
+
+## Asking the human
+
+If an ambiguity is too costly to assume (materially different work, expensive to undo, nothing on
+disk settles it), finish and tick every task independent of the answer, append up to 4 questions to
+the given `.opsx-run/<slug>/qa.md` under `## apply round <n> — question round <r>` (each `### Q<n>`
+with Options, Default, Why it matters) and return `STATUS: question` with `QUESTIONS`, `QA`, and
+`RESUME-STATE`. When resumed or re-spawned after answers, read `qa.md` first: answers are binding;
+if one would require a spec change, return `spec-conflict`. Continue from what is on disk; never ask
+a third round.
 
 ## Return payload
 
@@ -57,7 +68,7 @@ Return **at most 30 lines**. Never paste diffs or file contents.
 
 ```
 STAGE: apply (round <n>)
-STATUS: ok | partial | blocked | spec-conflict
+STATUS: ok | question | partial | blocked | spec-conflict
 CHANGE: <change-id>
 TASKS: <done>/<total> ticked
 FILES TOUCHED: <paths>
@@ -65,6 +76,7 @@ TESTS: <command> → pass | <n> failing: <summary>
 DEVIATIONS: <anything you did differently from tasks.md, and why>
 BLOCKED: <task → reason, or none>
 ADJACENT ISSUES: <problems seen but not fixed, or none>
+QUESTIONS / QA / RESUME-STATE: <only when STATUS: question>
 NEXT: verify | needs-human
 ```
 
